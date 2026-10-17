@@ -8,6 +8,7 @@ import { STRESS_PALETTE } from '../shaders/stressShader.js'
 import Canvas3D, { VIEW_PRESETS } from './Canvas3D.jsx'
 import CliTerminal from './CliTerminal.jsx'
 import Controls from './Controls.jsx'
+import GuidedTour, { TOUR_STEPS, shouldShowTourOnFirstVisit } from './GuidedTour.jsx'
 import InertiaTensor from './InertiaTensor.jsx'
 import TelemetryHUD from './TelemetryHUD.jsx'
 import TimeSeriesChart from './TimeSeriesChart.jsx'
@@ -82,9 +83,14 @@ function Mark() {
   )
 }
 
-function ChartCard({ title, hint, legend, tabs, children }) {
+function ChartCard({ title, hint, legend, tabs, highlighted, children }) {
   return (
-    <div className="flex min-h-[230px] shrink-0 flex-col border-b border-ink-700 lg:min-h-0 lg:min-w-[260px] lg:flex-1 lg:shrink lg:border-b-0 lg:border-r lg:last:border-r-0">
+    <div
+      className={cx(
+        'flex min-h-[230px] shrink-0 flex-col border-b border-ink-700 lg:min-h-0 lg:min-w-[260px] lg:flex-1 lg:shrink lg:border-b-0 lg:border-r lg:last:border-r-0 transition-all duration-300',
+        highlighted && 'ring-2 ring-cyan-400/80 border-cyan-400 bg-cyan-950/20 shadow-[0_0_24px_rgba(34,211,238,0.35)]',
+      )}
+    >
       <div className="flex min-h-8 shrink-0 flex-wrap items-center justify-between gap-x-3 gap-y-1 px-3 py-1.5 lg:h-8 lg:flex-nowrap lg:py-0">
         <div className="flex min-w-0 items-center gap-2">
           {tabs ?? <Label className="whitespace-nowrap">{title}</Label>}
@@ -176,7 +182,7 @@ function MobileActionBar({ snapshot, api }) {
   )
 }
 
-function TopBar({ snapshot, commanded, bridge, busHz }) {
+function TopBar({ snapshot, commanded, bridge, busHz, onTakeTour }) {
   const phase = snapshot?.phase ?? PHASE.IDLE
   const forecast = predictOutcome(commanded).verdict
   const gncTone = !snapshot ? 'off' : snapshot.paused ? 'warn' : snapshot.tickHz > 30 ? 'ok' : 'warn'
@@ -228,6 +234,18 @@ function TopBar({ snapshot, commanded, bridge, busHz }) {
       </div>
 
       <div className="scroll-thin flex w-full items-center justify-between gap-3 overflow-x-auto sm:justify-start sm:gap-4 lg:ml-auto lg:w-auto xl:ml-0">
+        <button
+          type="button"
+          onClick={onTakeTour}
+          className="num flex h-7 shrink-0 items-center gap-1.5 rounded-[3px] border border-cyan-500/50 bg-cyan-950/60 px-2.5 text-[11px] font-medium tracking-wide text-cyan-300 shadow-[0_0_12px_rgba(34,211,238,0.2)] transition-all hover:border-cyan-400 hover:bg-cyan-500/20 hover:text-white hover:shadow-[0_0_18px_rgba(34,211,238,0.4)] active:scale-95"
+          title="Replay interactive 3-step guided tour"
+        >
+          <svg className="h-3.5 w-3.5 text-cyan-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <circle cx="12" cy="12" r="10" />
+            <polygon points="10 8 16 12 10 16 10 8" fill="currentColor" />
+          </svg>
+          <span>Take Tour</span>
+        </button>
         <Led label="GNC_ACTIVE" short="GNC" tone={gncTone} title="Physics worker integrating at publish rate" />
         <Led label="BUS_CONNECTED" short="BUS" tone={busTone} title={`ROS 2 bus · odom ${busHz.toFixed(1)} Hz`} />
         <Led label="ROSBRIDGE" short="BRIDGE" tone={bridgeTone} title={bridge.url ?? 'rosbridge offline'} />
@@ -247,6 +265,28 @@ export default function GNCWorkbench({ sim }) {
   const [cliOpen, setCliOpen] = useState(false)
   const [cliLines, setCliLines] = useState(BOOT_LINES)
   const [bridge, setBridge] = useState(() => api.graph.bridgeState())
+
+  // Guided Tour and Mobile Viewport State
+  const [isTourActive, setIsTourActive] = useState(() => shouldShowTourOnFirstVisit())
+  const [currentStep, setCurrentStep] = useState(0)
+  const [panelsCollapsed, setPanelsCollapsed] = useState(false)
+  const tourHighlight = isTourActive ? TOUR_STEPS[currentStep]?.highlightKey : null
+
+  const handleStepChange = useCallback((step) => {
+    setCurrentStep(step)
+    if (step === 0 || step === 2) {
+      setMobileTab('control')
+    } else if (step === 1) {
+      setMobileTab('plots')
+    }
+  }, [])
+
+  const handleTakeTour = useCallback(() => {
+    setIsTourActive(true)
+    setCurrentStep(0)
+    setPanelsCollapsed(false)
+    setMobileTab('control')
+  }, [])
 
   useEffect(() => api.graph.subscribe(() => setBridge(api.graph.bridgeState())), [api.graph])
 
@@ -316,11 +356,16 @@ export default function GNCWorkbench({ sim }) {
 
   return (
     <div className="flex h-[100dvh] flex-col overflow-hidden bg-ink-950 text-slate-100">
-      <TopBar snapshot={snapshot} commanded={commanded} bridge={bridge} busHz={busHz} />
+      <TopBar snapshot={snapshot} commanded={commanded} bridge={bridge} busHz={busHz} onTakeTour={handleTakeTour} />
 
       <main className="flex min-h-0 flex-1 flex-col lg:grid lg:grid-cols-[296px_minmax(0,1fr)_376px] lg:grid-rows-[minmax(0,1fr)_228px]">
-        <section className="relative h-[42dvh] min-h-[240px] shrink-0 overflow-hidden bg-ink-950 lg:col-start-2 lg:row-start-1 lg:h-auto lg:min-h-0">
-          <Canvas3D stateRef={api.stateRef} view={view} layers={layers} />
+        <section
+          className={cx(
+            'relative shrink-0 overflow-hidden bg-ink-950 transition-all duration-300 lg:col-start-2 lg:row-start-1 lg:h-auto lg:min-h-0',
+            panelsCollapsed ? 'h-full min-h-0 flex-1' : 'h-[42dvh] min-h-[240px]',
+          )}
+        >
+          <Canvas3D stateRef={api.stateRef} view={view} layers={layers} tourHighlight={tourHighlight} />
 
           <div className="pointer-events-none absolute inset-0 z-10">
             <div className="absolute left-2 right-2 top-2 flex items-start justify-between gap-2 lg:left-3 lg:right-auto lg:top-3">
@@ -336,7 +381,12 @@ export default function GNCWorkbench({ sim }) {
                 <span className="text-emerald-400">›_</span> CLI
               </button>
             </div>
-            <div className="absolute left-2 top-11 lg:left-auto lg:right-3 lg:top-3">
+            <div
+              className={cx(
+                'absolute left-2 top-11 transition-all duration-300 lg:left-auto lg:right-3 lg:top-3',
+                tourHighlight === 'step2' && 'ring-2 ring-cyan-400 shadow-[0_0_20px_rgba(34,211,238,0.5)] animate-pulse',
+              )}
+            >
               <StressLegend strainMax={snapshot?.strainMax} />
             </div>
 
@@ -368,9 +418,9 @@ export default function GNCWorkbench({ sim }) {
           <CliTerminal open={cliOpen} lines={cliLines} onSubmit={runCommand} onClose={() => setCliOpen(false)} />
         </section>
 
-        <MobileActionBar snapshot={snapshot} api={api} />
+        {!panelsCollapsed && <MobileActionBar snapshot={snapshot} api={api} />}
 
-        <div className="min-h-0 flex-1 lg:contents">
+        <div className={cx(panelsCollapsed ? 'hidden lg:contents' : 'min-h-0 flex-1 lg:contents')}>
           <section
             className={cx(
               mobileTab === 'plots' ? 'flex' : 'hidden',
@@ -378,7 +428,7 @@ export default function GNCWorkbench({ sim }) {
             )}
           >
             <InertiaTensor snapshot={snapshot} />
-            <ChartCard title="Energy" hint="J" legend={ENERGY_SERIES}>
+            <ChartCard title="Energy" hint="J" legend={ENERGY_SERIES} highlighted={tourHighlight === 'step2'}>
               <TimeSeriesChart history={api.history} series={ENERGY_SERIES} />
             </ChartCard>
             <ChartCard
@@ -391,7 +441,7 @@ export default function GNCWorkbench({ sim }) {
           </section>
 
           <div className={cx(mobileTab === 'control' ? 'block' : 'hidden', 'h-full lg:col-start-1 lg:row-span-2 lg:row-start-1 lg:block lg:min-h-0')}>
-            <Controls api={api} commanded={commanded} snapshot={snapshot} onExport={handleExport} />
+            <Controls api={api} commanded={commanded} snapshot={snapshot} onExport={handleExport} tourHighlight={tourHighlight} />
           </div>
           <div className={cx(mobileTab === 'telemetry' ? 'block' : 'hidden', 'h-full lg:col-start-3 lg:row-span-2 lg:row-start-1 lg:block lg:min-h-0')}>
             <TelemetryHUD snapshot={snapshot} decision={decision} events={events} graph={api.graph} />
@@ -399,7 +449,13 @@ export default function GNCWorkbench({ sim }) {
         </div>
       </main>
 
-      <nav className="flex shrink-0 border-t border-ink-700 bg-ink-925 pb-[env(safe-area-inset-bottom)] lg:hidden" aria-label="Panels">
+      <nav
+        className={cx(
+          'flex shrink-0 border-t border-ink-700 bg-ink-925 pb-[env(safe-area-inset-bottom)] lg:hidden',
+          panelsCollapsed && 'hidden',
+        )}
+        aria-label="Panels"
+      >
         {MOBILE_TABS.map((t) => (
           <button
             key={t.id}
@@ -416,6 +472,25 @@ export default function GNCWorkbench({ sim }) {
           </button>
         ))}
       </nav>
+
+      {/* Floating Toggle Panels button on viewports < 768px (md:hidden) */}
+      <button
+        type="button"
+        onClick={() => setPanelsCollapsed((p) => !p)}
+        className="num fixed bottom-4 right-4 z-40 flex items-center gap-2 rounded-full border border-cyan-500/60 bg-ink-950/90 px-3.5 py-2 text-[11px] font-medium text-cyan-300 shadow-[0_0_20px_rgba(0,0,0,0.8),0_0_12px_rgba(34,211,238,0.25)] backdrop-blur-md transition-all active:scale-95 md:hidden hover:border-cyan-400 hover:text-white"
+        aria-label={panelsCollapsed ? 'Show HUD panels' : 'Hide HUD panels'}
+      >
+        <span className={cx('flex h-2 w-2 rounded-full', panelsCollapsed ? 'bg-cyan-400 animate-pulse' : 'bg-slate-400')} />
+        <span>{panelsCollapsed ? 'Show Panels' : 'Toggle Panels'}</span>
+      </button>
+
+      {/* Guided Tour Modal */}
+      <GuidedTour
+        isTourActive={isTourActive}
+        currentStep={currentStep}
+        onStepChange={handleStepChange}
+        onClose={() => setIsTourActive(false)}
+      />
     </div>
   )
 }

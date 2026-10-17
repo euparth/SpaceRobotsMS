@@ -6,6 +6,7 @@ import { CUBESAT, NET } from '../physics/constants.js'
 import { CORNER_NODES, NODE_COUNT, SEGMENTS, TRIANGLES } from '../physics/netTopology.js'
 import { F, NODE_POSITION_OFFSET, NODE_STRAIN_OFFSET } from '../physics/stateLayout.js'
 import { createStressMaterial } from '../shaders/stressShader.js'
+import { cx } from './ui.jsx'
 
 export const VIEW_PRESETS = Object.freeze({
   iso: { label: 'ISO', position: [3.9, 1.55, 4.3], target: [0, 0, 1.45] },
@@ -380,7 +381,7 @@ function disposeScene(root) {
   })
 }
 
-function Canvas3D({ stateRef, view, layers }) {
+function Canvas3D({ stateRef, view, layers, tourHighlight }) {
   const hostRef = useRef(null)
   const reticleRef = useRef(null)
   const reticleBoxRef = useRef(null)
@@ -674,19 +675,31 @@ function Canvas3D({ stateRef, view, layers }) {
     apiRef.current?.applyLayers(layers)
   }, [layers])
 
+  const isTargetHighlight = tourHighlight === 'step1'
+
   return (
     <div className="absolute inset-0">
       <div ref={hostRef} className="absolute inset-0" />
       <div ref={reticleRef} className="pointer-events-none absolute left-0 top-0 opacity-0 will-change-transform">
-        <div ref={reticleBoxRef} className="absolute -translate-x-1/2 -translate-y-1/2" style={{ width: 60, height: 60 }}>
-          <span className="absolute left-0 top-0 h-2.5 w-2.5 border-l border-t border-slate-300/70" />
-          <span className="absolute right-0 top-0 h-2.5 w-2.5 border-r border-t border-slate-300/70" />
-          <span className="absolute bottom-0 left-0 h-2.5 w-2.5 border-b border-l border-slate-300/70" />
-          <span className="absolute bottom-0 right-0 h-2.5 w-2.5 border-b border-r border-slate-300/70" />
+        <div
+          ref={reticleBoxRef}
+          className={cx(
+            'absolute -translate-x-1/2 -translate-y-1/2 transition-all duration-300',
+            isTargetHighlight && 'ring-2 ring-cyan-400 shadow-[0_0_24px_rgba(34,211,238,0.8)] border border-cyan-400 animate-pulse',
+          )}
+          style={{ width: 60, height: 60 }}
+        >
+          <span className={cx('absolute left-0 top-0 h-2.5 w-2.5 border-l border-t', isTargetHighlight ? 'border-cyan-400' : 'border-slate-300/70')} />
+          <span className={cx('absolute right-0 top-0 h-2.5 w-2.5 border-r border-t', isTargetHighlight ? 'border-cyan-400' : 'border-slate-300/70')} />
+          <span className={cx('absolute bottom-0 left-0 h-2.5 w-2.5 border-b border-l', isTargetHighlight ? 'border-cyan-400' : 'border-slate-300/70')} />
+          <span className={cx('absolute bottom-0 right-0 h-2.5 w-2.5 border-b border-r', isTargetHighlight ? 'border-cyan-400' : 'border-slate-300/70')} />
         </div>
         <div
           ref={reticleLabelRef}
-          className="num absolute left-0 top-0 whitespace-nowrap text-[10px] tracking-[0.04em] text-slate-300/90"
+          className={cx(
+            'num absolute left-0 top-0 whitespace-nowrap text-[10px] tracking-[0.04em] transition-colors',
+            isTargetHighlight ? 'text-cyan-300 font-semibold' : 'text-slate-300/90',
+          )}
         />
       </div>
     </div>

@@ -83,7 +83,7 @@ function RateRow({ axis, role, value, disabled, onCommit }) {
   )
 }
 
-export default function Controls({ api, commanded, snapshot, onExport }) {
+export default function Controls({ api, commanded, snapshot, onExport, tourHighlight }) {
   const phase = snapshot?.phase ?? PHASE.IDLE
   const armed = phase === PHASE.IDLE
   const paused = snapshot?.paused ?? false
@@ -101,6 +101,10 @@ export default function Controls({ api, commanded, snapshot, onExport }) {
     <aside className="flex h-full min-h-0 flex-col border-r border-ink-700 bg-ink-925">
       <div className="scroll-thin min-h-0 flex-1 overflow-y-auto">
         <Section
+          className={cx(
+            'transition-all duration-300',
+            tourHighlight === 'step1' && 'ring-2 ring-cyan-400/80 bg-cyan-950/25 shadow-[0_0_24px_rgba(34,211,238,0.35)]',
+          )}
           title={
             <>
               Initial body rates <span className="normal-case">ω₀</span>
@@ -149,6 +153,7 @@ export default function Controls({ api, commanded, snapshot, onExport }) {
             const p = predictOutcome(preset.w)
             const v = VERDICT[p.verdict]
             const active = preset.w.every((x, i) => Math.abs(x - commanded[i]) < 1e-6)
+            const isS3Pulse = preset.id === 'S3' && tourHighlight === 'step3'
             return (
               <button
                 key={preset.id}
@@ -157,8 +162,9 @@ export default function Controls({ api, commanded, snapshot, onExport }) {
                 onClick={() => api.applyPreset(preset.id)}
                 title={preset.note}
                 className={cx(
-                  'grid w-full grid-cols-[26px_minmax(0,1fr)_auto] items-center gap-2 px-3 py-[7px] text-left transition-colors disabled:cursor-not-allowed disabled:opacity-50',
+                  'grid w-full grid-cols-[26px_minmax(0,1fr)_auto] items-center gap-2 px-3 py-[7px] text-left transition-all disabled:cursor-not-allowed disabled:opacity-50',
                   active ? 'bg-ink-800' : 'hover:bg-ink-850',
+                  isS3Pulse && 'ring-2 ring-cyan-400 border border-cyan-400 bg-cyan-950/70 shadow-[0_0_20px_rgba(34,211,238,0.6)] animate-pulse',
                 )}
               >
                 <span className={cx('num text-[10.5px]', active ? 'text-slate-200' : 'text-slate-500')}>{preset.id}</span>
