@@ -4,15 +4,29 @@ export default {
   theme: {
     extend: {
       fontFamily: {
-        display: ['Rajdhani', 'sans-serif'],
-        mono: ['IBM Plex Mono', 'ui-monospace', 'monospace'],
+        sans: ['"IBM Plex Sans"', 'system-ui', 'sans-serif'],
+        mono: ['"IBM Plex Mono"', 'ui-monospace', 'monospace'],
       },
       colors: {
-        kevlar: '#d4a017',
-        plasma: '#22d3ee',
+        ink: {
+          950: '#05070a',
+          925: '#080b10',
+          900: '#0b0f15',
+          850: '#10151d',
+          800: '#141b25',
+          700: '#1d2632',
+          600: '#2a3542',
+          500: '#3b4756',
+        },
       },
-      boxShadow: {
-        hud: '0 0 40px rgba(34, 211, 238, 0.08)',
+      keyframes: {
+        blink: {
+          '0%, 100%': { opacity: '1' },
+          '50%': { opacity: '0.25' },
+        },
+      },
+      animation: {
+        blink: 'blink 0.9s steps(2, start) infinite',
       },
     },
   },

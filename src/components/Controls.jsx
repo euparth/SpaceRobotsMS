@@ -1,163 +1,240 @@
-import {
-  Crosshair,
-  Play,
-  RotateCcw,
-  Satellite,
-  SlidersHorizontal,
-  Zap,
-} from 'lucide-react'
+import { useEffect, useState } from 'react'
+import { CAPTURE, MAX_RATE, NET, PRESETS, SOLVER } from '../physics/constants.js'
+import { NET_MASS, NODE_COUNT } from '../physics/netTopology.js'
+import { predictOutcome, principalAxes } from '../physics/rigidBody.js'
+import { PHASE } from '../physics/stateLayout.js'
+import { Button, Kbd, Label, Readout, Section, cx, fmt } from './ui.jsx'
 
-const PRESETS = [
-  {
-    id: 'coop',
-    label: 'Cooperative (0 rad/s)',
-    omega: { wx: 0, wy: 0, wz: 0 },
-  },
-  {
-    id: 'stable',
-    label: 'Stable Tumbling (X=1.5, Y=1.0, Z=0.5)',
-    omega: { wx: 1.5, wy: 1.0, wz: 0.5 },
-  },
-  {
-    id: 'unstable',
-    label: 'Unstable High-Spin (Z=4.2 rad/s)',
-    omega: { wx: 0.8, wy: 0.4, wz: 4.2 },
-  },
-]
+const AXES = principalAxes()
 
-function AxisSlider({ axis, value, disabled, onChange }) {
+const VERDICT = Object.freeze({
+  SECURE: { label: 'SECURE', className: 'border-emerald-500/30 text-emerald-400' },
+  EJECT: { label: 'EJECT', className: 'border-red-500/40 text-red-400' },
+  PHASE_DEPENDENT: { label: 'PHASE-DEP', className: 'border-amber-500/40 text-amber-400' },
+})
+
+function RateRow({ axis, role, value, disabled, onCommit }) {
+  const [draft, setDraft] = useState(value.toFixed(2))
+  const [focused, setFocused] = useState(false)
+
+  useEffect(() => {
+    if (!focused) setDraft(value.toFixed(2))
+  }, [value, focused])
+
+  const commit = () => {
+    const v = parseFloat(draft)
+    if (Number.isFinite(v)) onCommit(Math.min(MAX_RATE, Math.max(0, v)))
+    else setDraft(value.toFixed(2))
+  }
+
+  const isZ = axis === 'z'
+  const over = isZ && value > CAPTURE.wzLimit
+  const pct = (value / MAX_RATE) * 100
+
   return (
-    <label className="block">
-      <div className="mb-1 flex items-center justify-between text-[11px] uppercase tracking-widest text-slate-400">
-        <span>ω{axis}</span>
-        <span className="font-mono text-cyan-300">{value.toFixed(2)} rad/s</span>
+    <div className="grid grid-cols-[40px_minmax(0,1fr)_60px] items-center gap-3 py-[5px]">
+      <div className="leading-none">
+        <div className="num text-[12.5px] text-slate-200">
+          ω<sub className="text-[9px]">{axis}</sub>
+        </div>
+        <div className="mt-1 text-[8.5px] uppercase tracking-[0.12em] text-slate-600">{role}</div>
+      </div>
+      <div className="relative">
+        <input
+          type="range"
+          className="range"
+          min={0}
+          max={MAX_RATE}
+          step={0.01}
+          value={value}
+          disabled={disabled}
+          aria-label={`omega ${axis}`}
+          onChange={(e) => onCommit(Number(e.target.value))}
+          style={{ '--pct': `${pct}%`, '--fill': over ? '#f87171' : '#cbd5e1' }}
+        />
+        {isZ && (
+          <span
+            className="pointer-events-none absolute top-[3px] h-[10px] w-px bg-red-500/80"
+            style={{ left: `${(CAPTURE.wzLimit / MAX_RATE) * 100}%` }}
+          />
+        )}
       </div>
       <input
-        type="range"
-        min="0"
-        max="5"
-        step="0.05"
-        value={value}
+        className={cx(
+          'num h-7 w-full rounded-[3px] border bg-ink-950 px-2 text-right text-[12px] outline-none transition-colors disabled:opacity-50',
+          over ? 'border-red-500/50 text-red-300' : 'border-ink-600 text-slate-100 focus:border-slate-400',
+        )}
+        value={draft}
         disabled={disabled}
-        onChange={(e) => onChange(Number(e.target.value))}
+        inputMode="decimal"
+        spellCheck={false}
+        aria-label={`omega ${axis} value`}
+        onFocus={() => setFocused(true)}
+        onBlur={() => {
+          setFocused(false)
+          commit()
+        }}
+        onChange={(e) => setDraft(e.target.value)}
+        onKeyDown={(e) => {
+          if (e.key === 'Enter') e.currentTarget.blur()
+        }}
       />
-    </label>
+    </div>
   )
 }
 
-export default function Controls({ omega, setOmega, launched, onLaunch, onReset }) {
-  const locked = launched
-  const wzUnsafe = omega.wz > 3
+export default function Controls({ api, commanded, snapshot, onExport }) {
+  const phase = snapshot?.phase ?? PHASE.IDLE
+  const armed = phase === PHASE.IDLE
+  const paused = snapshot?.paused ?? false
+  const prediction = predictOutcome(commanded)
+  const verdict = VERDICT[prediction.verdict]
+  const [timeScale, setTimeScale] = useState(SOLVER.defaultTimeScale)
+
+  const setAxis = (i, v) => {
+    const next = [...commanded]
+    next[i] = v
+    api.setSpin(next)
+  }
 
   return (
-    <aside className="glass-panel hud-scan pointer-events-auto max-h-[calc(100vh-7rem)] w-[20rem] max-w-[calc(100vw-1.5rem)] overflow-y-auto rounded-2xl p-4 shadow-hud">
-      <div className="mb-4 flex items-center gap-2 border-b border-slate-700/60 pb-3">
-        <SlidersHorizontal className="h-4 w-4 text-cyan-400" />
-        <div>
-          <p className="font-display text-lg font-semibold leading-none tracking-wide text-slate-100">
-            Capture Control
-          </p>
-          <p className="mt-1 text-[10px] uppercase tracking-[0.2em] text-slate-500">
-            Non-cooperative 12U target
-          </p>
-        </div>
-      </div>
+    <aside className="flex h-full min-h-0 flex-col border-r border-ink-700 bg-ink-925">
+      <div className="scroll-thin min-h-0 flex-1 overflow-y-auto">
+        <Section
+          title="Initial body rates ω₀"
+          aside={<span className="num text-[10px] text-slate-600">rad/s · body</span>}
+        >
+          {AXES.map((a, i) => (
+            <RateRow
+              key={a.axis}
+              axis={a.axis}
+              role={a.role}
+              value={commanded[i]}
+              disabled={!armed}
+              onCommit={(v) => setAxis(i, v)}
+            />
+          ))}
+          <div className="mt-2.5 border border-ink-700 bg-ink-950/60 px-2.5 py-1.5">
+            <Readout
+              label="|ωz| commanded"
+              value={fmt(Math.abs(commanded[2]))}
+              unit="rad/s"
+              tone={Math.abs(commanded[2]) > CAPTURE.wzLimit ? 'alert' : 'default'}
+            />
+            <Readout
+              label="Polhode peak |ωz|"
+              value={fmt(prediction.peak)}
+              unit="rad/s"
+              tone={prediction.peak > CAPTURE.wzLimit ? 'warn' : 'default'}
+            />
+            <Readout label="Twist-out limit" value={fmt(CAPTURE.wzLimit)} unit="rad/s" tone="muted" />
+            <div className="flex h-[26px] items-center justify-between">
+              <span className="text-[11.5px] text-slate-400">Forecast</span>
+              <span className={cx('num rounded-[2px] border px-1.5 text-[10px] leading-[18px] tracking-[0.08em]', verdict.className)}>
+                {verdict.label}
+              </span>
+            </div>
+          </div>
+          {!armed && (
+            <p className="mt-2 text-[11px] leading-snug text-slate-500">Rates are locked while the net is deployed. Reset to re-arm.</p>
+          )}
+        </Section>
 
-      <div className="mb-4 rounded-xl border border-slate-700/70 bg-slate-950/50 p-3">
-        <div className="mb-2 flex items-center gap-2 text-[10px] uppercase tracking-widest text-slate-400">
-          <Satellite className="h-3.5 w-3.5 text-amber-300" />
-          Target angular velocity
-        </div>
-        <div className="space-y-3">
-          <AxisSlider
-            axis="x"
-            value={omega.wx}
-            disabled={locked}
-            onChange={(wx) => setOmega((o) => ({ ...o, wx }))}
-          />
-          <AxisSlider
-            axis="y"
-            value={omega.wy}
-            disabled={locked}
-            onChange={(wy) => setOmega((o) => ({ ...o, wy }))}
-          />
-          <AxisSlider
-            axis="z"
-            value={omega.wz}
-            disabled={locked}
-            onChange={(wz) => setOmega((o) => ({ ...o, wz }))}
-          />
-        </div>
-        <p className={`mt-3 text-[10px] ${wzUnsafe ? 'text-rose-400' : 'text-emerald-400/80'}`}>
-          {wzUnsafe
-            ? 'WARNING: Z-spin exceeds 3.0 rad/s twist-out threshold'
-            : 'Z-spin within tensile restraint envelope (≤ 3.0 rad/s)'}
-        </p>
-      </div>
-
-      <div className="mb-4">
-        <p className="mb-2 text-[10px] uppercase tracking-widest text-slate-400">Presets</p>
-        <div className="space-y-2">
-          {PRESETS.map((p) => {
-            const active =
-              omega.wx === p.omega.wx && omega.wy === p.omega.wy && omega.wz === p.omega.wz
+        <Section title="Scenarios" aside={<span className="num text-[10px] text-slate-600">ωx · ωy · ωz</span>} bodyClassName="px-0 pb-1">
+          {PRESETS.map((preset, index) => {
+            const p = predictOutcome(preset.w)
+            const v = VERDICT[p.verdict]
+            const active = preset.w.every((x, i) => Math.abs(x - commanded[i]) < 1e-6)
             return (
               <button
-                key={p.id}
-                disabled={locked}
-                onClick={() => setOmega(p.omega)}
-                className={`w-full rounded-lg border px-3 py-2 text-left text-xs transition ${
-                  active
-                    ? 'border-cyan-400/70 bg-cyan-400/10 text-cyan-100'
-                    : 'border-slate-700/80 bg-slate-950/40 text-slate-300 hover:border-slate-500'
-                } disabled:opacity-40`}
+                key={preset.id}
+                type="button"
+                disabled={!armed}
+                onClick={() => api.applyPreset(preset.id)}
+                title={preset.note}
+                className={cx(
+                  'grid w-full grid-cols-[26px_minmax(0,1fr)_auto] items-center gap-2 px-3 py-[7px] text-left transition-colors disabled:cursor-not-allowed disabled:opacity-50',
+                  active ? 'bg-ink-800' : 'hover:bg-ink-850',
+                )}
               >
-                {p.label}
+                <span className={cx('num text-[10.5px]', active ? 'text-slate-200' : 'text-slate-500')}>{preset.id}</span>
+                <span className="min-w-0">
+                  <span className="block truncate text-[12px] text-slate-200">{preset.name}</span>
+                  <span className="num block text-[10.5px] text-slate-500">{preset.w.map((x) => x.toFixed(2)).join(' · ')}</span>
+                </span>
+                <span className="flex items-center gap-2">
+                  <span className={cx('num rounded-[2px] border px-1 text-[9px] leading-[16px] tracking-[0.08em]', v.className)}>{v.label}</span>
+                  <Kbd>{index + 1}</Kbd>
+                </span>
               </button>
             )
           })}
-        </div>
+        </Section>
+
+        <Section title="Simulation clock" aside={<span className="num text-[10px] text-slate-600">t_sim / t_wall</span>}>
+          <div className="grid grid-cols-[minmax(0,1fr)_56px] items-center gap-3">
+            <input
+              type="range"
+              className="range"
+              min={0.05}
+              max={1}
+              step={0.05}
+              value={timeScale}
+              aria-label="time scale"
+              onChange={(e) => {
+                const v = Number(e.target.value)
+                setTimeScale(v)
+                api.setTimeScale(v)
+              }}
+              style={{ '--pct': `${((timeScale - 0.05) / 0.95) * 100}%` }}
+            />
+            <span className="num text-right text-[12px] text-slate-100">{timeScale.toFixed(2)}×</span>
+          </div>
+          <p className="mt-1.5 text-[11px] leading-snug text-slate-500">
+            A {NET.approachSpeed.toFixed(1)} m/s intercept over {NET.standoff.toFixed(1)} m lasts {(NET.standoff / NET.approachSpeed).toFixed(2)} s of sim time.
+          </p>
+          <Button variant="ghost" className="mt-2.5 w-full" onClick={paused ? api.resume : api.pause}>
+            {paused ? 'Resume integration' : 'Pause integration'}
+            <Kbd>Space</Kbd>
+          </Button>
+        </Section>
+
+        <Section title="Net payload">
+          <Readout label="Material" value={NET.material} />
+          <Readout label="Mesh" value={`${NET.size.toFixed(1)} × ${NET.size.toFixed(1)} m`} />
+          <Readout label="Lattice" value={`${Math.sqrt(NODE_COUNT)} × ${Math.sqrt(NODE_COUNT)} knots`} />
+          <Readout label="Young's modulus E" value="120" unit="GPa" />
+          <Readout label="Density ρ" value="1 440" unit="kg/m³" />
+          <Readout label="Friction μ" value={NET.friction.toFixed(2)} />
+          <Readout label="Approach v_rel" value={NET.approachSpeed.toFixed(1)} unit="m/s" />
+          <Readout label="Thread Ø" value={(NET.threadDiameter * 1000).toFixed(1)} unit="mm" />
+          <Readout label="Mesh mass" value={(NET_MASS * 1000).toFixed(1)} unit="g" />
+          <Readout label="Corner masses" value={`4 × ${(NET.cornerMass * 1000).toFixed(0)}`} unit="g" />
+          <Readout label="η weave" value={fmt(snapshot?.eta ?? NET.wovenEfficiency, 4)} tone="muted" />
+        </Section>
       </div>
 
-      <div className="mb-4 grid grid-cols-2 gap-2 text-[10px] text-slate-400">
-        <div className="rounded-lg border border-slate-700/60 bg-slate-950/40 p-2">
-          <p className="uppercase tracking-widest text-slate-500">Net</p>
-          <p className="mt-1 font-display text-sm text-amber-300">Kevlar 49</p>
-          <p>2.0 m × 2.0 m · 12×12</p>
+      <div className="border-t border-ink-700 bg-ink-900 p-3">
+        <div className="grid grid-cols-[minmax(0,1fr)_auto] gap-2">
+          <Button variant="primary" disabled={!armed} onClick={api.launch}>
+            Launch capture net
+            <span className="num rounded-[2px] border border-ink-950/20 px-1 text-[10px] leading-[16px]">L</span>
+          </Button>
+          <Button variant="ghost" onClick={api.reset} title="Reset (R)">
+            Reset
+          </Button>
         </div>
-        <div className="rounded-lg border border-slate-700/60 bg-slate-950/40 p-2">
-          <p className="uppercase tracking-widest text-slate-500">Approach</p>
-          <p className="mt-1 font-display text-sm text-cyan-300">10.0 m/s</p>
-          <p>μ = 0.20 · E = 120 GPa</p>
+        <div className="mt-2 flex items-center justify-between">
+          <Label>Export dataset</Label>
+          <div className="flex gap-1.5">
+            <Button variant="ghost" className="h-7 px-2.5" onClick={() => onExport('json')}>
+              JSON
+            </Button>
+            <Button variant="ghost" className="h-7 px-2.5" onClick={() => onExport('csv')}>
+              CSV
+            </Button>
+          </div>
         </div>
-      </div>
-
-      <div className="flex gap-2">
-        <button
-          onClick={onLaunch}
-          disabled={locked}
-          className="flex flex-1 items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-amber-500 to-yellow-400 px-3 py-2.5 font-display text-sm font-semibold tracking-wide text-slate-950 shadow-[0_0_24px_rgba(234,179,8,0.35)] transition hover:brightness-110 disabled:cursor-not-allowed disabled:opacity-40"
-        >
-          <Play className="h-4 w-4" />
-          Launch Capture Net
-        </button>
-        <button
-          onClick={onReset}
-          aria-label="Reset simulation"
-          className="flex items-center justify-center gap-2 rounded-xl border border-slate-600 bg-slate-950/70 px-3 py-2.5 text-slate-200 transition hover:border-cyan-400/60"
-        >
-          <RotateCcw className="h-4 w-4" />
-        </button>
-      </div>
-
-      <div className="mt-3 flex items-start gap-2 text-[10px] leading-relaxed text-slate-500">
-        <Crosshair className="mt-0.5 h-3.5 w-3.5 shrink-0 text-slate-500" />
-        Corner masses expand the mesh to 2 m × 2 m. Capture holds if ωz ≤ 3.0 rad/s; higher Z-spin
-        ejects the target.
-      </div>
-      <div className="mt-2 flex items-center gap-2 text-[10px] text-amber-200/70">
-        <Zap className="h-3.5 w-3.5" />
-        Time-dilated LEO visualization of 10 m/s relative intercept.
       </div>
     </aside>
   )

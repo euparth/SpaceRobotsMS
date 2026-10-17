@@ -1,833 +1,696 @@
-import { useEffect, useRef } from 'react'
+import { memo, useEffect, useRef } from 'react'
 import * as THREE from 'three'
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js'
+import { RoomEnvironment } from 'three/examples/jsm/environments/RoomEnvironment.js'
+import { CUBESAT, NET } from '../physics/constants.js'
+import { CORNER_NODES, NODE_COUNT, SEGMENTS, TRIANGLES } from '../physics/netTopology.js'
+import { F, NODE_POSITION_OFFSET, NODE_STRAIN_OFFSET } from '../physics/stateLayout.js'
+import { createStressMaterial } from '../shaders/stressShader.js'
 
-const GRID = 12
-const NET_SIZE = 2.0
-const SAT_SCALE = 1.55
-const SAT = {
-  w: 0.227 * SAT_SCALE,
-  h: 0.366 * SAT_SCALE,
-  d: 0.240 * SAT_SCALE,
-  mass: 30.0,
-}
-const NODE_MASS = 0.045
-const CORNER_MASS = 0.85
-const STIFFNESS = 220
-const SHEAR_STIFFNESS = 70
-const DAMPING = 0.55
-const REST = NET_SIZE / (GRID - 1)
-const APPROACH_SPEED = 10.0
-const TIME_DILATION = 0.22
-const WZ_LIMIT = 3.0
-const MU = 0.2
-const YOUNG_E = 120e9
-const DENSITY = 1440
+export const VIEW_PRESETS = Object.freeze({
+  iso: { label: 'ISO', position: [3.9, 1.55, 4.3], target: [0, 0, 1.45] },
+  front: { label: 'FRONT', position: [0, 0.18, 6.4], target: [0, 0, 0.6] },
+  side: { label: 'SIDE', position: [5.6, 0.35, 1.3], target: [0, 0, 1.3] },
+  top: { label: 'TOP', position: [0, 6.8, 1.9], target: [0, 0, 1.3] },
+  track: { label: 'TRACK', offset: [1.1, 0.65, 1.55] },
+})
 
-function inertiaTensor() {
-  const { w, h, d, mass } = SAT
-  return {
-    ix: (mass / 12) * (h * h + d * d),
-    iy: (mass / 12) * (w * w + d * d),
-    iz: (mass / 12) * (w * w + h * h),
-  }
+const TRAIL_LENGTH = 360
+const GIZMO_SIZE = 84
+
+function canvasTexture(width, height, draw) {
+  const canvas = document.createElement('canvas')
+  canvas.width = width
+  canvas.height = height
+  draw(canvas.getContext('2d'), width, height)
+  const texture = new THREE.CanvasTexture(canvas)
+  texture.colorSpace = THREE.SRGBColorSpace
+  texture.anisotropy = 8
+  return texture
 }
 
-function makeSolarTexture() {
-  const c = document.createElement('canvas')
-  c.width = 512
-  c.height = 512
-  const ctx = c.getContext('2d')
-  ctx.fillStyle = '#071018'
-  ctx.fillRect(0, 0, 512, 512)
-  const cols = 6
-  const rows = 8
-  const pad = 10
-  const gw = (512 - pad * 2) / cols
-  const gh = (512 - pad * 2) / rows
-  for (let j = 0; j < rows; j++) {
-    for (let i = 0; i < cols; i++) {
-      const x = pad + i * gw
-      const y = pad + j * gh
-      const g = ctx.createLinearGradient(x, y, x + gw, y + gh)
-      g.addColorStop(0, '#0b3a5c')
-      g.addColorStop(0.45, '#165d86')
-      g.addColorStop(1, '#0a2a44')
-      ctx.fillStyle = g
-      ctx.fillRect(x + 3, y + 3, gw - 6, gh - 6)
-      ctx.strokeStyle = '#7dd3fc'
-      ctx.globalAlpha = 0.28
-      ctx.strokeRect(x + 3, y + 3, gw - 6, gh - 6)
-      ctx.globalAlpha = 1
+function solarPanelTexture() {
+  return canvasTexture(512, 768, (ctx, w, h) => {
+    ctx.fillStyle = '#0b1017'
+    ctx.fillRect(0, 0, w, h)
+    const cols = 4
+    const rows = 6
+    const pad = 20
+    const gap = 6
+    const cw = (w - pad * 2 - gap * (cols - 1)) / cols
+    const ch = (h - pad * 2 - gap * (rows - 1)) / rows
+    const clip = 9
+    for (let r = 0; r < rows; r++) {
+      for (let c = 0; c < cols; c++) {
+        const x = pad + c * (cw + gap)
+        const y = pad + r * (ch + gap)
+        const g = ctx.createLinearGradient(x, y, x + cw, y + ch)
+        g.addColorStop(0, '#22315d')
+        g.addColorStop(0.55, '#152250')
+        g.addColorStop(1, '#0c1533')
+        ctx.fillStyle = g
+        ctx.beginPath()
+        ctx.moveTo(x + clip, y)
+        ctx.lineTo(x + cw - clip, y)
+        ctx.lineTo(x + cw, y + clip)
+        ctx.lineTo(x + cw, y + ch - clip)
+        ctx.lineTo(x + cw - clip, y + ch)
+        ctx.lineTo(x + clip, y + ch)
+        ctx.lineTo(x, y + ch - clip)
+        ctx.lineTo(x, y + clip)
+        ctx.closePath()
+        ctx.fill()
+        ctx.strokeStyle = 'rgba(203, 213, 225, 0.05)'
+        ctx.lineWidth = 1
+        for (let f = y + 6; f < y + ch; f += 6) {
+          ctx.beginPath()
+          ctx.moveTo(x + 2, f)
+          ctx.lineTo(x + cw - 2, f)
+          ctx.stroke()
+        }
+        ctx.strokeStyle = 'rgba(203, 213, 225, 0.32)'
+        for (const bx of [0.33, 0.66]) {
+          ctx.beginPath()
+          ctx.moveTo(x + cw * bx, y + 3)
+          ctx.lineTo(x + cw * bx, y + ch - 3)
+          ctx.stroke()
+        }
+      }
     }
-  }
-  ctx.strokeStyle = '#94a3b8'
-  ctx.lineWidth = 8
-  ctx.strokeRect(4, 4, 504, 504)
-  const tex = new THREE.CanvasTexture(c)
-  tex.anisotropy = 8
-  tex.colorSpace = THREE.SRGBColorSpace
-  return tex
-}
-
-function makeMliTexture() {
-  const c = document.createElement('canvas')
-  c.width = 256
-  c.height = 256
-  const ctx = c.getContext('2d')
-  const g = ctx.createLinearGradient(0, 0, 256, 256)
-  g.addColorStop(0, '#8a6a22')
-  g.addColorStop(0.4, '#e8c547')
-  g.addColorStop(0.7, '#b8860b')
-  g.addColorStop(1, '#6b4f12')
-  ctx.fillStyle = g
-  ctx.fillRect(0, 0, 256, 256)
-  ctx.globalAlpha = 0.18
-  for (let i = 0; i < 18; i++) {
-    ctx.strokeStyle = i % 2 ? '#fff3c4' : '#5a430c'
-    ctx.beginPath()
-    ctx.moveTo(0, i * 14)
-    ctx.lineTo(256, i * 14 + 40)
-    ctx.stroke()
-  }
-  ctx.globalAlpha = 1
-  const tex = new THREE.CanvasTexture(c)
-  tex.colorSpace = THREE.SRGBColorSpace
-  return tex
-}
-
-function makeStarfield(count = 2800) {
-  const geo = new THREE.BufferGeometry()
-  const pos = new Float32Array(count * 3)
-  const col = new Float32Array(count * 3)
-  for (let i = 0; i < count; i++) {
-    const r = 40 + Math.random() * 180
-    const theta = Math.random() * Math.PI * 2
-    const phi = Math.acos(2 * Math.random() - 1)
-    pos[i * 3] = r * Math.sin(phi) * Math.cos(theta)
-    pos[i * 3 + 1] = r * Math.sin(phi) * Math.sin(theta)
-    pos[i * 3 + 2] = r * Math.cos(phi)
-    const t = Math.random()
-    col[i * 3] = 0.75 + t * 0.25
-    col[i * 3 + 1] = 0.8 + t * 0.15
-    col[i * 3 + 2] = 1
-  }
-  geo.setAttribute('position', new THREE.BufferAttribute(pos, 3))
-  geo.setAttribute('color', new THREE.BufferAttribute(col, 3))
-  const mat = new THREE.PointsMaterial({
-    size: 0.22,
-    vertexColors: true,
-    transparent: true,
-    opacity: 0.9,
-    depthWrite: false,
+    ctx.strokeStyle = '#9aa4af'
+    ctx.lineWidth = 12
+    ctx.strokeRect(6, 6, w - 12, h - 12)
   })
-  return new THREE.Points(geo, mat)
+}
+
+function endPlateTexture() {
+  return canvasTexture(512, 512, (ctx, w, h) => {
+    ctx.fillStyle = '#717b86'
+    ctx.fillRect(0, 0, w, h)
+    for (let i = 0; i < 260; i++) {
+      ctx.strokeStyle = `rgba(255,255,255,${0.015 + Math.random() * 0.03})`
+      const y = Math.random() * h
+      ctx.beginPath()
+      ctx.moveTo(0, y)
+      ctx.lineTo(w, y + (Math.random() - 0.5) * 4)
+      ctx.stroke()
+    }
+    ctx.fillStyle = '#1d232b'
+    ctx.beginPath()
+    ctx.arc(w * 0.33, h * 0.5, 62, 0, Math.PI * 2)
+    ctx.fill()
+    ctx.strokeStyle = '#a7b0ba'
+    ctx.lineWidth = 6
+    ctx.stroke()
+    const lens = ctx.createRadialGradient(w * 0.31, h * 0.48, 4, w * 0.33, h * 0.5, 48)
+    lens.addColorStop(0, '#3b4c6b')
+    lens.addColorStop(1, '#05070a')
+    ctx.fillStyle = lens
+    ctx.beginPath()
+    ctx.arc(w * 0.33, h * 0.5, 44, 0, Math.PI * 2)
+    ctx.fill()
+    ctx.fillStyle = '#2a3038'
+    ctx.fillRect(w * 0.62, h * 0.3, 110, 34)
+    ctx.fillRect(w * 0.62, h * 0.62, 70, 26)
+    ctx.fillStyle = '#c9d1da'
+    ctx.font = '600 22px "IBM Plex Mono", monospace'
+    ctx.fillText('PS-MSC · 12U', w * 0.58, h * 0.88)
+    ctx.strokeStyle = '#4b535d'
+    ctx.lineWidth = 10
+    ctx.strokeRect(5, 5, w - 10, h - 10)
+  })
 }
 
 function buildCubeSat() {
+  const [w, h, d] = CUBESAT.dims
   const group = new THREE.Group()
-  const solar = makeSolarTexture()
-  const mli = makeMliTexture()
-  const { w, h, d } = SAT
+  const solar = new THREE.MeshStandardMaterial({ map: solarPanelTexture(), metalness: 0.45, roughness: 0.32 })
+  const plate = new THREE.MeshStandardMaterial({ map: endPlateTexture(), metalness: 0.75, roughness: 0.38 })
+  group.add(new THREE.Mesh(new THREE.BoxGeometry(w, h, d), [solar, solar, plate, plate, solar, solar]))
 
-  const body = new THREE.Mesh(
-    new THREE.BoxGeometry(w, h, d),
-    [
-      new THREE.MeshStandardMaterial({ map: solar, metalness: 0.35, roughness: 0.45 }),
-      new THREE.MeshStandardMaterial({ map: solar, metalness: 0.35, roughness: 0.45 }),
-      new THREE.MeshStandardMaterial({ map: mli, metalness: 0.7, roughness: 0.28 }),
-      new THREE.MeshStandardMaterial({ map: mli, metalness: 0.7, roughness: 0.28 }),
-      new THREE.MeshStandardMaterial({ map: solar, metalness: 0.35, roughness: 0.45 }),
-      new THREE.MeshStandardMaterial({ map: solar, metalness: 0.35, roughness: 0.45 }),
-    ],
+  const rail = new THREE.MeshStandardMaterial({ color: 0xb7bec7, metalness: 0.9, roughness: 0.28 })
+  const railGeometry = new THREE.BoxGeometry(0.0085, h + 0.012, 0.0085)
+  for (const sx of [-1, 1]) {
+    for (const sz of [-1, 1]) {
+      const m = new THREE.Mesh(railGeometry, rail)
+      m.position.set((sx * w) / 2, 0, (sz * d) / 2)
+      group.add(m)
+    }
+  }
+
+  const tape = new THREE.MeshStandardMaterial({ color: 0xd8dde3, metalness: 0.7, roughness: 0.3 })
+  for (const sx of [-1, 1]) {
+    const whip = new THREE.Mesh(new THREE.BoxGeometry(0.17, 0.0008, 0.006), tape)
+    whip.position.set(sx * (w / 2 + 0.085), h / 2 - 0.012, 0)
+    group.add(whip)
+  }
+
+  const patch = new THREE.Mesh(
+    new THREE.BoxGeometry(0.06, 0.004, 0.06),
+    new THREE.MeshStandardMaterial({ color: 0xc9a227, metalness: 0.9, roughness: 0.25 }),
   )
-  body.castShadow = true
-  body.receiveShadow = true
-  group.add(body)
+  patch.position.set(0.045, h / 2 + 0.002, -0.05)
+  group.add(patch)
 
-  const railMat = new THREE.MeshStandardMaterial({
-    color: 0xc9d2dc,
-    metalness: 0.85,
-    roughness: 0.22,
-  })
-  const railT = 0.012
-  const edges = [
-    [w / 2, h / 2, 0, railT, railT, d + 0.02],
-    [-w / 2, h / 2, 0, railT, railT, d + 0.02],
-    [w / 2, -h / 2, 0, railT, railT, d + 0.02],
-    [-w / 2, -h / 2, 0, railT, railT, d + 0.02],
-  ]
-  edges.forEach(([x, y, z, sx, sy, sz]) => {
-    const m = new THREE.Mesh(new THREE.BoxGeometry(sx, sy, sz), railMat)
-    m.position.set(x, y, z)
-    group.add(m)
-  })
-
-  const antenna = new THREE.Mesh(
-    new THREE.CylinderGeometry(0.004, 0.004, 0.28, 8),
-    new THREE.MeshStandardMaterial({ color: 0xd4d4d8, metalness: 0.8, roughness: 0.2 }),
+  const baffle = new THREE.Mesh(
+    new THREE.CylinderGeometry(0.018, 0.024, 0.04, 24, 1, true),
+    new THREE.MeshStandardMaterial({ color: 0x15191f, metalness: 0.4, roughness: 0.6, side: THREE.DoubleSide }),
   )
-  antenna.position.set(0, h / 2 + 0.14, 0)
-  group.add(antenna)
+  baffle.position.set(-0.05, -h / 2 - 0.02, 0.05)
+  group.add(baffle)
 
-  const dish = new THREE.Mesh(
-    new THREE.ConeGeometry(0.035, 0.04, 16),
-    new THREE.MeshStandardMaterial({ color: 0xf5d76e, metalness: 0.6, roughness: 0.3 }),
+  const axisGeometry = new THREE.BufferGeometry()
+  axisGeometry.setAttribute(
+    'position',
+    new THREE.Float32BufferAttribute([0, 0, 0, 0.3, 0, 0, 0, 0, 0, 0, 0.36, 0, 0, 0, 0, 0, 0, 0.3], 3),
   )
-  dish.rotation.x = Math.PI
-  dish.position.set(0.04, -h / 2 - 0.02, 0.02)
-  group.add(dish)
-
-  const label = makeLabelTexture('12U TARGET')
-  const badge = new THREE.Mesh(
-    new THREE.PlaneGeometry(0.14, 0.04),
-    new THREE.MeshBasicMaterial({ map: label, transparent: true }),
+  axisGeometry.setAttribute(
+    'color',
+    new THREE.Float32BufferAttribute([1, 0.36, 0.36, 1, 0.36, 0.36, 0.3, 0.86, 0.5, 0.3, 0.86, 0.5, 0.38, 0.6, 1, 0.38, 0.6, 1], 3),
   )
-  badge.position.set(0, 0.02, d / 2 + 0.001)
-  group.add(badge)
+  const axes = new THREE.LineSegments(
+    axisGeometry,
+    new THREE.LineBasicMaterial({ vertexColors: true, depthTest: false, transparent: true, opacity: 0.9 }),
+  )
+  axes.renderOrder = 10
+  group.add(axes)
 
-  group.userData.half = new THREE.Vector3(w / 2, h / 2, d / 2)
+  return { group, axes }
+}
+
+function buildDeployer() {
+  const group = new THREE.Group()
+  const hull = new THREE.Mesh(
+    new THREE.BoxGeometry(0.5, 0.4, 0.6),
+    new THREE.MeshStandardMaterial({ color: 0x1b2129, metalness: 0.5, roughness: 0.55 }),
+  )
+  hull.position.z = NET.standoff + 0.6
+  group.add(hull)
+  const mli = new THREE.Mesh(
+    new THREE.BoxGeometry(0.505, 0.18, 0.4),
+    new THREE.MeshStandardMaterial({ color: 0xb8902c, metalness: 0.85, roughness: 0.35 }),
+  )
+  mli.position.set(0, 0.12, NET.standoff + 0.62)
+  group.add(mli)
+  const canister = new THREE.Mesh(
+    new THREE.CylinderGeometry(0.15, 0.15, 0.26, 32, 1, true),
+    new THREE.MeshStandardMaterial({ color: 0x9aa3ad, metalness: 0.85, roughness: 0.3, side: THREE.DoubleSide }),
+  )
+  canister.rotation.x = Math.PI / 2
+  canister.position.z = NET.standoff + 0.17
+  group.add(canister)
   return group
 }
 
-function makeLabelTexture(text) {
-  const c = document.createElement('canvas')
-  c.width = 256
-  c.height = 64
-  const ctx = c.getContext('2d')
-  ctx.fillStyle = 'rgba(2,6,23,0.85)'
-  ctx.fillRect(0, 0, 256, 64)
-  ctx.strokeStyle = '#22d3ee'
-  ctx.strokeRect(4, 4, 248, 56)
-  ctx.fillStyle = '#e2e8f0'
-  ctx.font = 'bold 28px monospace'
-  ctx.textAlign = 'center'
-  ctx.fillText(text, 128, 42)
-  const tex = new THREE.CanvasTexture(c)
-  tex.colorSpace = THREE.SRGBColorSpace
-  return tex
+function buildStars() {
+  const group = new THREE.Group()
+  for (const [count, size, opacity] of [
+    [4200, 1.0, 0.75],
+    [500, 1.9, 0.95],
+  ]) {
+    const positions = new Float32Array(count * 3)
+    const colors = new Float32Array(count * 3)
+    for (let i = 0; i < count; i++) {
+      const r = 120 + Math.random() * 120
+      const theta = Math.random() * Math.PI * 2
+      const phi = Math.acos(2 * Math.random() - 1)
+      positions[i * 3] = r * Math.sin(phi) * Math.cos(theta)
+      positions[i * 3 + 1] = r * Math.sin(phi) * Math.sin(theta)
+      positions[i * 3 + 2] = r * Math.cos(phi)
+      const warm = Math.random()
+      colors[i * 3] = 0.82 + warm * 0.18
+      colors[i * 3 + 1] = 0.85 + warm * 0.1
+      colors[i * 3 + 2] = 1
+    }
+    const geometry = new THREE.BufferGeometry()
+    geometry.setAttribute('position', new THREE.BufferAttribute(positions, 3))
+    geometry.setAttribute('color', new THREE.BufferAttribute(colors, 3))
+    group.add(
+      new THREE.Points(
+        geometry,
+        new THREE.PointsMaterial({ size, sizeAttenuation: false, vertexColors: true, transparent: true, opacity, depthWrite: false }),
+      ),
+    )
+  }
+  return group
 }
 
-function buildChaser() {
-  const g = new THREE.Group()
-  const body = new THREE.Mesh(
-    new THREE.BoxGeometry(0.38, 0.22, 0.5),
-    new THREE.MeshStandardMaterial({ color: 0x1e293b, metalness: 0.55, roughness: 0.4 }),
+function buildEarth() {
+  const group = new THREE.Group()
+  const radius = 110
+  const globe = new THREE.Mesh(
+    new THREE.SphereGeometry(radius, 128, 128),
+    new THREE.MeshStandardMaterial({ color: 0x061322, roughness: 1, metalness: 0, emissive: 0x01040a }),
   )
-  g.add(body)
-  const ring = new THREE.Mesh(
-    new THREE.TorusGeometry(0.16, 0.012, 8, 24),
-    new THREE.MeshStandardMaterial({ color: 0x22d3ee, emissive: 0x0e7490, emissiveIntensity: 0.6 }),
-  )
-  ring.position.z = -0.28
-  g.add(ring)
-  const boom = new THREE.Mesh(
-    new THREE.BoxGeometry(0.04, 0.04, 0.35),
-    new THREE.MeshStandardMaterial({ color: 0x94a3b8, metalness: 0.7, roughness: 0.3 }),
-  )
-  boom.position.z = -0.48
-  g.add(boom)
-  g.position.set(0, 0, 3.55)
-  return g
-}
-
-function createNetState(startZ) {
-  const nodes = []
-  const compact = 0.55
-  for (let j = 0; j < GRID; j++) {
-    for (let i = 0; i < GRID; i++) {
-      const u = i / (GRID - 1)
-      const v = j / (GRID - 1)
-      const corner =
-        (i === 0 || i === GRID - 1) && (j === 0 || j === GRID - 1)
-      nodes.push({
-        i,
-        j,
-        corner,
-        mass: corner ? CORNER_MASS : NODE_MASS,
-        p: new THREE.Vector3(
-          (u - 0.5) * NET_SIZE * compact,
-          (v - 0.5) * NET_SIZE * compact,
-          startZ + (Math.random() - 0.5) * 0.02,
-        ),
-        v: new THREE.Vector3(),
-        f: new THREE.Vector3(),
-        lockedLocal: null,
-      })
-    }
-  }
-
-  const springs = []
-  const idx = (i, j) => j * GRID + i
-  const add = (a, b, k, restScale = 1) => {
-    springs.push({ a, b, k, rest: nodes[a].p.distanceTo(nodes[b].p) * restScale })
-  }
-  for (let j = 0; j < GRID; j++) {
-    for (let i = 0; i < GRID; i++) {
-      if (i + 1 < GRID) add(idx(i, j), idx(i + 1, j), STIFFNESS)
-      if (j + 1 < GRID) add(idx(i, j), idx(i, j + 1), STIFFNESS)
-      if (i + 1 < GRID && j + 1 < GRID) add(idx(i, j), idx(i + 1, j + 1), SHEAR_STIFFNESS)
-      if (i + 1 < GRID && j - 1 >= 0) add(idx(i, j), idx(i + 1, j - 1), SHEAR_STIFFNESS)
-    }
-  }
-
-  springs.forEach((s) => {
-    s.rest = REST * (s.k === SHEAR_STIFFNESS ? Math.SQRT2 : 1)
-  })
-
-  return { nodes, springs, startZ }
-}
-
-function buildNetMeshes(nodes) {
-  const positions = new Float32Array(nodes.length * 3)
-  const geo = new THREE.BufferGeometry()
-  geo.setAttribute('position', new THREE.BufferAttribute(positions, 3))
-
-  const segs = []
-  const idx = (i, j) => j * GRID + i
-  for (let j = 0; j < GRID; j++) {
-    for (let i = 0; i < GRID; i++) {
-      if (i + 1 < GRID) segs.push(idx(i, j), idx(i + 1, j))
-      if (j + 1 < GRID) segs.push(idx(i, j), idx(i, j + 1))
-    }
-  }
-  geo.setIndex(segs)
-
-  const lines = new THREE.LineSegments(
-    geo,
-    new THREE.LineBasicMaterial({
-      color: 0xe8b923,
+  const atmosphere = new THREE.Mesh(
+    new THREE.SphereGeometry(radius * 1.022, 128, 128),
+    new THREE.ShaderMaterial({
       transparent: true,
-      opacity: 0.92,
+      depthWrite: false,
+      blending: THREE.AdditiveBlending,
+      vertexShader: /* glsl */ `
+        varying vec3 vNormal;
+        varying vec3 vView;
+        void main() {
+          vNormal = normalize(normalMatrix * normal);
+          vec4 mv = modelViewMatrix * vec4(position, 1.0);
+          vView = normalize(-mv.xyz);
+          gl_Position = projectionMatrix * mv;
+        }
+      `,
+      fragmentShader: /* glsl */ `
+        varying vec3 vNormal;
+        varying vec3 vView;
+        void main() {
+          float rim = pow(1.0 - max(dot(vNormal, vView), 0.0), 4.0);
+          gl_FragColor = vec4(vec3(0.2, 0.48, 1.0) * rim * 0.85, rim * 0.8);
+          #include <colorspace_fragment>
+        }
+      `,
     }),
   )
-
-  const pts = new THREE.Points(
-    geo.clone(),
-    new THREE.PointsMaterial({
-      color: 0xffe08a,
-      size: 0.028,
-      transparent: true,
-      opacity: 0.85,
-    }),
-  )
-
-  const cornerMeshes = nodes
-    .filter((n) => n.corner)
-    .map(() => {
-      const m = new THREE.Mesh(
-        new THREE.SphereGeometry(0.045, 16, 16),
-        new THREE.MeshStandardMaterial({
-          color: 0xb45309,
-          metalness: 0.4,
-          roughness: 0.35,
-          emissive: 0x7c2d12,
-          emissiveIntensity: 0.25,
-        }),
-      )
-      return m
-    })
-
-  return { lines, pts, cornerMeshes }
+  group.add(globe, atmosphere)
+  group.position.set(-40, -220, -160)
+  return group
 }
 
-function syncNetGeometry(nodes, lines, pts, cornerMeshes) {
-  const arr = lines.geometry.attributes.position.array
-  const arr2 = pts.geometry.attributes.position.array
-  let c = 0
-  for (let n = 0; n < nodes.length; n++) {
-    const p = nodes[n].p
-    arr[n * 3] = p.x
-    arr[n * 3 + 1] = p.y
-    arr[n * 3 + 2] = p.z
-    arr2[n * 3] = p.x
-    arr2[n * 3 + 1] = p.y
-    arr2[n * 3 + 2] = p.z
-    if (nodes[n].corner) {
-      cornerMeshes[c].position.copy(p)
-      c++
-    }
+function buildReference() {
+  const group = new THREE.Group()
+  const polar = new THREE.PolarGridHelper(3.2, 16, 8, 96, 0x2b3644, 0x1a222d)
+  polar.position.set(0, -0.6, 1.3)
+  polar.material.transparent = true
+  polar.material.opacity = 0.55
+  group.add(polar)
+
+  const los = new THREE.Line(
+    new THREE.BufferGeometry().setFromPoints([new THREE.Vector3(0, 0, 0), new THREE.Vector3(0, 0, NET.standoff)]),
+    new THREE.LineDashedMaterial({ color: 0x64748b, dashSize: 0.05, gapSize: 0.04, transparent: true, opacity: 0.6 }),
+  )
+  los.computeLineDistances()
+  group.add(los)
+  return group
+}
+
+function buildNet() {
+  const position = new THREE.BufferAttribute(new Float32Array(NODE_COUNT * 3), 3).setUsage(THREE.DynamicDrawUsage)
+  const strain = new THREE.BufferAttribute(new Float32Array(NODE_COUNT), 1).setUsage(THREE.DynamicDrawUsage)
+
+  const lineGeometry = new THREE.BufferGeometry()
+  lineGeometry.setAttribute('position', position)
+  lineGeometry.setAttribute('aStrain', strain)
+  lineGeometry.setIndex(new THREE.BufferAttribute(new Uint16Array(SEGMENTS), 1))
+
+  const surfaceGeometry = new THREE.BufferGeometry()
+  surfaceGeometry.setAttribute('position', position)
+  surfaceGeometry.setAttribute('aStrain', strain)
+  surfaceGeometry.setIndex(new THREE.BufferAttribute(new Uint16Array(TRIANGLES), 1))
+
+  const knotGeometry = new THREE.BufferGeometry()
+  knotGeometry.setAttribute('position', position)
+  knotGeometry.setAttribute('aStrain', strain)
+
+  const materials = [
+    createStressMaterial({ variant: 'line', opacity: 0.95 }),
+    createStressMaterial({ variant: 'points', opacity: 0.95, pointSize: 3.4 }),
+    createStressMaterial({ variant: 'surface', opacity: 0.07 }),
+  ]
+  const lines = new THREE.LineSegments(lineGeometry, materials[0])
+  const knots = new THREE.Points(knotGeometry, materials[1])
+  const membrane = new THREE.Mesh(surfaceGeometry, materials[2])
+  for (const obj of [lines, knots, membrane]) obj.frustumCulled = false
+  knots.renderOrder = 2
+  membrane.renderOrder = 1
+
+  const cornerMaterial = new THREE.MeshStandardMaterial({ color: 0xb08d57, metalness: 0.85, roughness: 0.3 })
+  const cornerGeometry = new THREE.SphereGeometry(0.022, 20, 20)
+  const corners = CORNER_NODES.map(() => new THREE.Mesh(cornerGeometry, cornerMaterial))
+
+  return { position, strain, lines, knots, membrane, corners, materials }
+}
+
+function labelSprite(text, color) {
+  const texture = canvasTexture(64, 64, (ctx) => {
+    ctx.fillStyle = color
+    ctx.font = '600 40px "IBM Plex Mono", monospace'
+    ctx.textAlign = 'center'
+    ctx.textBaseline = 'middle'
+    ctx.fillText(text, 32, 34)
+  })
+  const sprite = new THREE.Sprite(new THREE.SpriteMaterial({ map: texture, depthTest: false }))
+  sprite.scale.setScalar(0.55)
+  return sprite
+}
+
+function buildGizmo() {
+  const scene = new THREE.Scene()
+  const axes = [
+    ['X', 0xf87171, '#f87171', [1, 0, 0]],
+    ['Y', 0x4ade80, '#4ade80', [0, 1, 0]],
+    ['Z', 0x60a5fa, '#60a5fa', [0, 0, 1]],
+  ]
+  for (const [label, hex, css, dir] of axes) {
+    const geometry = new THREE.BufferGeometry().setFromPoints([new THREE.Vector3(), new THREE.Vector3(...dir).multiplyScalar(0.85)])
+    scene.add(new THREE.Line(geometry, new THREE.LineBasicMaterial({ color: hex, depthTest: false })))
+    const sprite = labelSprite(label, css)
+    sprite.position.set(...dir.map((v) => v * 1.12))
+    scene.add(sprite)
   }
-  lines.geometry.attributes.position.needsUpdate = true
-  pts.geometry.attributes.position.needsUpdate = true
-  lines.geometry.computeBoundingSphere()
+  const camera = new THREE.OrthographicCamera(-1.5, 1.5, 1.5, -1.5, 0.1, 10)
+  return { scene, camera }
 }
 
-const _drape = new THREE.Vector3()
-function drapeTarget(i, j, sat, amount, out = _drape) {
-  const u = (i / (GRID - 1)) * 2 - 1
-  const v = (j / (GRID - 1)) * 2 - 1
-  const r = Math.hypot(u, v)
-  const rn = Math.min(1, r / Math.SQRT2)
-  const phi = rn * Math.PI * amount
-  const theta = Math.atan2(v, u)
-  const rx = SAT.w * 0.5 + 0.07
-  const ry = SAT.h * 0.5 + 0.07
-  const rz = SAT.d * 0.5 + 0.07
-  const s = r < 1e-6 ? 0 : 1
-  out.set(
-    rx * Math.sin(phi) * Math.cos(theta) * s,
-    ry * Math.sin(phi) * Math.sin(theta) * s,
-    rz * Math.cos(phi),
-  )
-  out.applyQuaternion(sat.quaternion)
-  out.add(sat.position)
-  return out
+function arrow(color) {
+  const a = new THREE.ArrowHelper(new THREE.Vector3(0, 0, 1), new THREE.Vector3(), 0.3, color, 0.05, 0.026)
+  a.line.material.depthTest = false
+  a.cone.material.depthTest = false
+  a.line.material.transparent = true
+  a.cone.material.transparent = true
+  a.renderOrder = 11
+  return a
 }
 
-function collideNodeWithBox(node, sat, omega, dt, contacting) {
-  const half = sat.userData.half
-  const local = sat.worldToLocal(node.p.clone())
-  const hx = half.x + 0.02
-  const hy = half.y + 0.02
-  const hz = half.z + 0.02
-  const inside =
-    Math.abs(local.x) < hx && Math.abs(local.y) < hy && Math.abs(local.z) < hz
-  if (!inside) return false
-
-  const dx = hx - Math.abs(local.x)
-  const dy = hy - Math.abs(local.y)
-  const dz = hz - Math.abs(local.z)
-  if (dx <= dy && dx <= dz) local.x = Math.sign(local.x || 1) * hx
-  else if (dy <= dz) local.y = Math.sign(local.y || 1) * hy
-  else local.z = Math.sign(local.z || 1) * hz
-
-  const world = sat.localToWorld(local)
-  const r = world.clone().sub(sat.position)
-  const surfaceVel = new THREE.Vector3().copy(omega).cross(r)
-  const incoming = node.v.clone()
-  const nrm = world.clone().sub(node.p)
-  if (nrm.lengthSq() < 1e-8) nrm.set(0, 0, 1)
-  nrm.normalize()
-  const rel = incoming.clone().sub(surfaceVel)
-  const vn = rel.dot(nrm)
-  if (vn < 0) rel.addScaledVector(nrm, -1.15 * vn)
-  const tan = rel.clone().addScaledVector(nrm, -rel.dot(nrm))
-  tan.multiplyScalar(Math.max(0, 1 - MU * 1.8))
-  node.p.copy(world)
-  node.v.copy(surfaceVel).add(tan).addScaledVector(nrm, 0.08)
-  contacting.push({ node, r, nrm })
-  return true
-}
-
-function computeEnclosure(nodes, sat) {
-  const oct = new Array(8).fill(0)
-  let near = 0
-  const center = sat.position
-  const reach = SAT.w + SAT.h + 0.35
-  nodes.forEach((n) => {
-    const d = n.p.distanceTo(center)
-    if (d < reach) {
-      near++
-      const dx = n.p.x >= center.x ? 1 : 0
-      const dy = n.p.y >= center.y ? 1 : 0
-      const dz = n.p.z >= center.z ? 1 : 0
-      oct[dx + dy * 2 + dz * 4]++
+function disposeScene(root) {
+  root.traverse((obj) => {
+    obj.geometry?.dispose()
+    const mats = Array.isArray(obj.material) ? obj.material : obj.material ? [obj.material] : []
+    for (const m of mats) {
+      m.map?.dispose()
+      m.dispose()
     }
   })
-  const occupied = oct.filter((v) => v > 3).length
-  const coverage = occupied / 8
-  const density = Math.min(1, near / (nodes.length * 0.55))
-  return Math.max(0, Math.min(1, coverage * 0.7 + density * 0.3))
 }
 
-function kineticEnergy(omega) {
-  const I = inertiaTensor()
-  return 0.5 * (I.ix * omega.x ** 2 + I.iy * omega.y ** 2 + I.iz * omega.z ** 2)
-}
-
-function netEnergy(nodes, springs) {
-  let e = 0
-  const tmp = new THREE.Vector3()
-  springs.forEach((s) => {
-    tmp.copy(nodes[s.b].p).sub(nodes[s.a].p)
-    const stretch = tmp.length() - s.rest
-    e += 0.5 * s.k * stretch * stretch
-  })
-  nodes.forEach((n) => {
-    e += 0.5 * n.mass * n.v.lengthSq()
-  })
-  return e
-}
-
-export default function Canvas3D({ omega, launched, epoch, onTelemetry }) {
-  const mountRef = useRef(null)
-  const omegaRef = useRef(omega)
-  const launchedRef = useRef(launched)
-  const telemetryRef = useRef(onTelemetry)
+function Canvas3D({ stateRef, view, layers }) {
+  const hostRef = useRef(null)
+  const reticleRef = useRef(null)
+  const reticleBoxRef = useRef(null)
+  const reticleLabelRef = useRef(null)
+  const viewRef = useRef(view)
+  const layersRef = useRef(layers)
+  const apiRef = useRef(null)
 
   useEffect(() => {
-    omegaRef.current = omega
-  }, [omega])
-  useEffect(() => {
-    launchedRef.current = launched
-  }, [launched])
-  useEffect(() => {
-    telemetryRef.current = onTelemetry
-  }, [onTelemetry])
-
-  useEffect(() => {
-    const mount = mountRef.current
-    const width = mount.clientWidth
-    const height = mount.clientHeight
-
-    const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: false })
+    const host = hostRef.current
+    const renderer = new THREE.WebGLRenderer({ antialias: true, powerPreference: 'high-performance' })
     renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2))
-    renderer.setSize(width, height)
-    renderer.shadowMap.enabled = true
     renderer.toneMapping = THREE.ACESFilmicToneMapping
-    renderer.toneMappingExposure = 1.05
-    renderer.setClearColor(0x020617, 1)
-    mount.appendChild(renderer.domElement)
+    renderer.toneMappingExposure = 1.0
+    renderer.autoClear = false
+    renderer.setClearColor(0x05070a, 1)
+    host.appendChild(renderer.domElement)
 
     const scene = new THREE.Scene()
-    scene.fog = new THREE.FogExp2(0x020617, 0.012)
+    const pmrem = new THREE.PMREMGenerator(renderer)
+    const environment = pmrem.fromScene(new RoomEnvironment(), 0.04).texture
+    scene.environment = environment
+    scene.environmentIntensity = 0.16
 
-    const camera = new THREE.PerspectiveCamera(48, width / height, 0.05, 400)
-    camera.position.set(2.05, 1.15, 3.55)
-
+    const camera = new THREE.PerspectiveCamera(38, 1, 0.01, 600)
+    camera.position.fromArray(VIEW_PRESETS.iso.position)
     const controls = new OrbitControls(camera, renderer.domElement)
     controls.enableDamping = true
-    controls.dampingFactor = 0.06
-    controls.maxDistance = 12
-    controls.minDistance = 1.4
-    controls.target.set(0, 0, 0.25)
+    controls.dampingFactor = 0.08
+    controls.minDistance = 0.6
+    controls.maxDistance = 18
+    controls.target.fromArray(VIEW_PRESETS.iso.target)
 
-    scene.add(new THREE.AmbientLight(0x6b7c99, 0.35))
-    const sun = new THREE.DirectionalLight(0xfff1d6, 1.65)
-    sun.position.set(6, 8, 4)
-    sun.castShadow = true
+    scene.add(new THREE.HemisphereLight(0x8fb4ff, 0x0b0f14, 0.32))
+    const sun = new THREE.DirectionalLight(0xfff3df, 2.7)
+    sun.position.set(5, 6, 3)
     scene.add(sun)
-    const rim = new THREE.DirectionalLight(0x67e8f9, 0.55)
-    rim.position.set(-5, 1, -4)
+    const earthshine = new THREE.DirectionalLight(0x3b6ea8, 0.55)
+    earthshine.position.set(0, -6, -2)
+    scene.add(earthshine)
+    const rim = new THREE.DirectionalLight(0x9ec5ff, 0.6)
+    rim.position.set(-4, 2, -5)
     scene.add(rim)
-    const fill = new THREE.PointLight(0x38bdf8, 0.4, 20)
-    fill.position.set(0, 2, 3)
-    scene.add(fill)
 
-    scene.add(makeStarfield())
-
-    const earth = new THREE.Mesh(
-      new THREE.SphereGeometry(28, 48, 48),
-      new THREE.MeshPhongMaterial({
-        color: 0x16324f,
-        emissive: 0x04101c,
-        shininess: 12,
-        specular: 0x224466,
-      }),
-    )
-    earth.position.set(-8, -32, -18)
+    scene.add(buildStars())
+    const earth = buildEarth()
     scene.add(earth)
-    const atmo = new THREE.Mesh(
-      new THREE.SphereGeometry(29.2, 32, 32),
-      new THREE.MeshBasicMaterial({
-        color: 0x38bdf8,
-        transparent: true,
-        opacity: 0.08,
-        side: THREE.BackSide,
-      }),
-    )
-    atmo.position.copy(earth.position)
-    scene.add(atmo)
+    const reference = buildReference()
+    scene.add(reference)
+    scene.add(buildDeployer())
 
-    const orbit = new THREE.Mesh(
-      new THREE.TorusGeometry(7.5, 0.004, 8, 128),
-      new THREE.MeshBasicMaterial({ color: 0x22d3ee, transparent: true, opacity: 0.18 }),
-    )
-    orbit.rotation.x = Math.PI / 2.4
-    scene.add(orbit)
-
-    const sat = buildCubeSat()
+    const { group: sat, axes: bodyAxes } = buildCubeSat()
     scene.add(sat)
-    const chaser = buildChaser()
-    scene.add(chaser)
 
-    const netStartZ = 2.35
-    let net = createNetState(netStartZ)
-    const netMeshes = buildNetMeshes(net.nodes)
-    scene.add(netMeshes.lines)
-    scene.add(netMeshes.pts)
-    netMeshes.cornerMeshes.forEach((m) => scene.add(m))
-    syncNetGeometry(net.nodes, netMeshes.lines, netMeshes.pts, netMeshes.cornerMeshes)
+    const net = buildNet()
+    scene.add(net.membrane, net.lines, net.knots, ...net.corners)
 
-    const tmp = new THREE.Vector3()
-    const omegaVec = new THREE.Vector3()
-    const satVel = new THREE.Vector3()
-    const qDot = new THREE.Quaternion()
+    const hArrow = arrow(0xe2e8f0)
+    const wArrow = arrow(0xe879f9)
+    scene.add(hArrow, wArrow)
 
-    let phase = 'idle'
-    let wrapT = 0
-    let failT = 0
-    let initialKe = 0
-    let fired = false
-    let elapsed = 0
-    let last = performance.now()
+    const trailRel = new Float32Array(TRAIL_LENGTH * 3)
+    const trailGeometry = new THREE.BufferGeometry()
+    const trailPositions = new THREE.BufferAttribute(new Float32Array(TRAIL_LENGTH * 3), 3).setUsage(THREE.DynamicDrawUsage)
+    trailGeometry.setAttribute('position', trailPositions)
+    trailGeometry.setDrawRange(0, 0)
+    const trail = new THREE.Line(
+      trailGeometry,
+      new THREE.LineBasicMaterial({ color: 0xe879f9, transparent: true, opacity: 0.45, depthTest: false }),
+    )
+    trail.frustumCulled = false
+    trail.renderOrder = 9
+    scene.add(trail)
+    let trailCount = 0
+    let lastT = -1
+
+    const gizmo = buildGizmo()
+
+    const desiredPosition = new THREE.Vector3().fromArray(VIEW_PRESETS.iso.position)
+    const desiredTarget = new THREE.Vector3().fromArray(VIEW_PRESETS.iso.target)
+    const trackOffset = new THREE.Vector3().fromArray(VIEW_PRESETS.track.offset)
+    let tweening = false
+
+    const applyView = (id) => {
+      const preset = VIEW_PRESETS[id]
+      if (!preset) return
+      if (id === 'track') {
+        trackOffset.fromArray(preset.offset)
+      } else {
+        desiredPosition.fromArray(preset.position)
+        desiredTarget.fromArray(preset.target)
+      }
+      tweening = true
+    }
+    controls.addEventListener('start', () => {
+      if (viewRef.current !== 'track') tweening = false
+    })
+    controls.addEventListener('end', () => {
+      if (viewRef.current === 'track') trackOffset.copy(camera.position).sub(controls.target)
+    })
+
+    const applyLayers = (l) => {
+      hArrow.visible = l.vectors
+      wArrow.visible = l.vectors
+      trail.visible = l.vectors
+      bodyAxes.visible = l.axes
+      reference.visible = l.grid
+      net.membrane.visible = l.membrane
+    }
+    applyLayers(layersRef.current)
+    apiRef.current = { applyView, applyLayers }
+
+    let width = 1
+    let height = 1
+    const resize = () => {
+      const rect = host.getBoundingClientRect()
+      width = Math.max(1, rect.width)
+      height = Math.max(1, rect.height)
+      renderer.setSize(width, height, false)
+      renderer.domElement.style.width = `${width}px`
+      renderer.domElement.style.height = `${height}px`
+      camera.aspect = width / height
+      camera.updateProjectionMatrix()
+      for (const m of net.materials) m.uniforms.uPixelRatio.value = renderer.getPixelRatio()
+    }
+    const observer = new ResizeObserver(resize)
+    observer.observe(host)
+    resize()
+
+    const wBody = new THREE.Vector3()
+    const wInertial = new THREE.Vector3()
+    const hInertial = new THREE.Vector3()
+    const dir = new THREE.Vector3()
+    const projected = new THREE.Vector3()
+    const edge = new THREE.Vector3()
+    const camRight = new THREE.Vector3()
+    let frame = 0
+    let lastFrame = performance.now()
     let raf = 0
-    const frozenOmega = new THREE.Vector3()
 
-    const launchNet = () => {
-      if (fired) return
-      fired = true
-      phase = 'flight'
-      const visualSpeed = APPROACH_SPEED * TIME_DILATION
-      net.nodes.forEach((n) => {
-        const outward = new THREE.Vector3(n.p.x, n.p.y, 0)
-        if (outward.lengthSq() > 1e-6) outward.normalize()
-        n.v.set(
-          outward.x * (n.corner ? 1.15 : 0.45),
-          outward.y * (n.corner ? 1.15 : 0.45),
-          -visualSpeed,
-        )
+    const applyState = (buf) => {
+      sat.position.set(buf[F.PX], buf[F.PY], buf[F.PZ])
+      sat.quaternion.set(buf[F.Q1], buf[F.Q2], buf[F.Q3], buf[F.Q0])
+      net.position.array.set(buf.subarray(NODE_POSITION_OFFSET, NODE_POSITION_OFFSET + NODE_COUNT * 3))
+      net.strain.array.set(buf.subarray(NODE_STRAIN_OFFSET, NODE_STRAIN_OFFSET + NODE_COUNT))
+      net.position.needsUpdate = true
+      net.strain.needsUpdate = true
+      CORNER_NODES.forEach((n, i) => {
+        const k = NODE_POSITION_OFFSET + n * 3
+        net.corners[i].position.set(buf[k], buf[k + 1], buf[k + 2])
       })
-      frozenOmega.set(omegaRef.current.wx, omegaRef.current.wy, omegaRef.current.wz)
-      omegaVec.copy(frozenOmega)
-      initialKe = kineticEnergy(omegaVec)
-    }
 
-    const resetLocal = () => {
-      phase = 'idle'
-      fired = false
-      wrapT = 0
-      failT = 0
-      sat.position.set(0, 0, 0)
-      sat.quaternion.identity()
-      satVel.set(0, 0, 0)
-      net = createNetState(netStartZ)
-      syncNetGeometry(net.nodes, netMeshes.lines, netMeshes.pts, netMeshes.cornerMeshes)
-    }
-
-    const stepNet = (dt) => {
-      const nodes = net.nodes
-      const springs = net.springs
-      nodes.forEach((n) => n.f.set(0, 0, 0))
-
-      if (phase === 'flight' || phase === 'failed') {
-        springs.forEach((s) => {
-          const a = nodes[s.a]
-          const b = nodes[s.b]
-          tmp.copy(b.p).sub(a.p)
-          const dist = tmp.length() || 1e-6
-          const stretch = dist - s.rest
-          tmp.multiplyScalar((s.k * stretch) / dist)
-          a.f.add(tmp)
-          b.f.sub(tmp)
-        })
+      wBody.set(buf[F.WX], buf[F.WY], buf[F.WZ])
+      wInertial.copy(wBody).applyQuaternion(sat.quaternion)
+      hInertial.set(buf[F.HX], buf[F.HY], buf[F.HZ])
+      const wMag = wInertial.length()
+      const hMag = hInertial.length()
+      hArrow.position.copy(sat.position)
+      wArrow.position.copy(sat.position)
+      hArrow.visible = layersRef.current.vectors && hMag > 1e-4
+      wArrow.visible = layersRef.current.vectors && wMag > 1e-4
+      if (hMag > 1e-4) {
+        hArrow.setDirection(dir.copy(hInertial).divideScalar(hMag))
+        hArrow.setLength(0.28 + 0.16 * Math.min(hMag, 3), 0.05, 0.026)
+      }
+      if (wMag > 1e-4) {
+        const len = 0.26 + 0.05 * Math.min(wMag, 8)
+        wArrow.setDirection(dir.copy(wInertial).divideScalar(wMag))
+        wArrow.setLength(len, 0.045, 0.024)
       }
 
-      if (phase === 'flight') {
-        nodes.forEach((n) => {
-          n.f.z -= n.mass * 1.6
-        })
+      const t = buf[F.T]
+      if (t < lastT) trailCount = 0
+      if (t !== lastT && wMag > 1e-4) {
+        const len = 0.26 + 0.05 * Math.min(wMag, 8)
+        trailRel.copyWithin(0, 3)
+        trailRel[TRAIL_LENGTH * 3 - 3] = (wInertial.x / wMag) * len
+        trailRel[TRAIL_LENGTH * 3 - 2] = (wInertial.y / wMag) * len
+        trailRel[TRAIL_LENGTH * 3 - 1] = (wInertial.z / wMag) * len
+        trailCount = Math.min(TRAIL_LENGTH, trailCount + 1)
       }
+      lastT = t
+      const start = TRAIL_LENGTH - trailCount
+      const arr = trailPositions.array
+      for (let i = start; i < TRAIL_LENGTH; i++) {
+        arr[(i - start) * 3] = trailRel[i * 3] + sat.position.x
+        arr[(i - start) * 3 + 1] = trailRel[i * 3 + 1] + sat.position.y
+        arr[(i - start) * 3 + 2] = trailRel[i * 3 + 2] + sat.position.z
+      }
+      trailPositions.needsUpdate = true
+      trailGeometry.setDrawRange(0, trailCount)
+      return buf[F.RANGE]
+    }
 
-      const contacting = []
-      const wrapAmount =
-        phase === 'secured'
-          ? 1
-          : phase === 'failed'
-            ? Math.max(0.18, 0.7 - failT * 0.55)
-            : Math.min(frozenOmega.z > WZ_LIMIT ? 0.64 : 1, wrapT / 1.2)
-
-      nodes.forEach((n) => {
-        if (n.lockedLocal && phase === 'secured') {
-          n.p.copy(n.lockedLocal).applyQuaternion(sat.quaternion).add(sat.position)
-          n.v.set(0, 0, 0)
-          return
-        }
-
-        if (phase === 'wrap' || phase === 'secured') {
-          drapeTarget(n.i, n.j, sat, wrapAmount, tmp)
-          n.p.lerp(tmp, 1 - Math.exp(-dt * 5.2))
-          n.v.set(0, 0, 0)
-          collideNodeWithBox(n, sat, omegaVec, dt, contacting)
-        } else if (phase === 'failed') {
-          const r = tmp.copy(n.p).sub(sat.position)
-          n.v.add(new THREE.Vector3().copy(omegaVec).cross(r).multiplyScalar(dt * 0.45))
-          n.v.addScaledVector(n.f, dt / n.mass)
-          n.v.multiplyScalar(Math.exp(-0.35 * dt))
-          n.p.addScaledVector(n.v, dt)
+    const updateCamera = (dt) => {
+      const k = 1 - Math.exp(-dt * 5)
+      if (viewRef.current === 'track') {
+        controls.target.lerp(sat.position, k)
+        if (tweening) {
+          camera.position.lerp(edge.copy(sat.position).add(trackOffset), k)
+          if (camera.position.distanceTo(edge) < 0.01) tweening = false
         } else {
-          n.v.addScaledVector(n.f, dt / n.mass)
-          n.v.multiplyScalar(Math.exp(-DAMPING * dt))
-          n.p.addScaledVector(n.v, dt)
-          collideNodeWithBox(n, sat, omegaVec, dt, contacting)
+          camera.position.copy(controls.target).add(trackOffset)
         }
-      })
-
-      if (phase === 'flight') {
-        const mid = nodes[(Math.floor(GRID / 2) * GRID) + Math.floor(GRID / 2)]
-        const reached =
-          contacting.length > 2 ||
-          mid.p.z < SAT.d * 0.5 + 0.18 ||
-          mid.p.distanceTo(sat.position) < 0.42
-        if (reached) phase = 'wrap'
+      } else if (tweening) {
+        camera.position.lerp(desiredPosition, k)
+        controls.target.lerp(desiredTarget, k)
+        if (camera.position.distanceTo(desiredPosition) < 0.004) tweening = false
       }
-      return contacting.length
     }
 
-    const lockNet = () => {
-      net.nodes.forEach((n) => {
-        drapeTarget(n.i, n.j, sat, 1, tmp)
-        n.p.copy(tmp)
-        n.lockedLocal = n.p.clone().sub(sat.position).applyQuaternion(sat.quaternion.clone().invert())
-        n.v.set(0, 0, 0)
-      })
-      phase = 'secured'
-    }
-
-    const ejectTarget = () => {
-      phase = 'failed'
-      failT = 0
-      const spin = Math.max(omegaVec.z, 0.5)
-      satVel.set(0.35 * spin, 0.12 * spin, -1.15)
-      net.nodes.forEach((n) => {
-        const r = n.p.clone().sub(sat.position)
-        const kick = new THREE.Vector3().copy(omegaVec).cross(r).multiplyScalar(0.55)
-        n.v.copy(kick)
-        n.v.x += (Math.random() - 0.5) * 1.1
-        n.v.y += 0.35 + Math.random() * 0.4
-        n.lockedLocal = null
-      })
+    const updateReticle = (range) => {
+      const el = reticleRef.current
+      if (!el) return
+      projected.copy(sat.position).project(camera)
+      if (projected.z > 1 || Math.abs(projected.x) > 1.2 || Math.abs(projected.y) > 1.2) {
+        el.style.opacity = '0'
+        return
+      }
+      const x = (projected.x * 0.5 + 0.5) * width
+      const y = (-projected.y * 0.5 + 0.5) * height
+      camRight.setFromMatrixColumn(camera.matrixWorld, 0)
+      edge.copy(sat.position).addScaledVector(camRight, 0.24).project(camera)
+      const r = Math.abs((edge.x - projected.x) * 0.5 * width)
+      const size = Math.min(180, Math.max(34, r * 2 + 18))
+      el.style.opacity = '1'
+      el.style.transform = `translate3d(${x}px, ${y}px, 0)`
+      if (reticleBoxRef.current) {
+        reticleBoxRef.current.style.width = `${size}px`
+        reticleBoxRef.current.style.height = `${size}px`
+      }
+      if (reticleLabelRef.current) {
+        reticleLabelRef.current.style.transform = `translate(${size / 2 + 8}px, ${-size / 2}px)`
+        if (frame % 6 === 0) {
+          reticleLabelRef.current.textContent = `TGT 12U · NET RNG ${Number.isFinite(range) ? range.toFixed(2) : '—'} m`
+        }
+      }
     }
 
     const tick = (now) => {
-      const dt = Math.min(0.033, (now - last) / 1000)
-      last = now
-      elapsed += dt
-
-      if (launchedRef.current && phase === 'idle') launchNet()
-      if (!launchedRef.current && phase !== 'idle' && !fired) resetLocal()
-
-      if (phase === 'idle') {
-        omegaVec.set(omegaRef.current.wx, omegaRef.current.wy, omegaRef.current.wz)
-      } else if (phase === 'flight' || phase === 'wrap') {
-        omegaVec.copy(frozenOmega)
-      }
-
-      if (phase !== 'idle') {
-        const steps = 3
-        const h = dt / steps
-        for (let s = 0; s < steps; s++) stepNet(h)
-      }
-
-      if (phase === 'wrap') {
-        wrapT += dt
-        if (frozenOmega.z > WZ_LIMIT) {
-          if (wrapT > 1.05) ejectTarget()
-        } else if (wrapT > 1.35) {
-          lockNet()
-        }
-      }
-
-      if (phase === 'failed') failT += dt
-
-      if (phase === 'secured') {
-        omegaVec.multiplyScalar(Math.max(0.12, 1 - dt * 0.9))
-        satVel.multiplyScalar(0.9)
-      }
-
-      if (phase !== 'idle') {
-        const w = omegaVec.length()
-        if (w > 1e-6) {
-          qDot.setFromAxisAngle(omegaVec.clone().normalize(), w * dt)
-          sat.quaternion.premultiply(qDot)
-        }
-        sat.position.addScaledVector(satVel, dt)
-      } else {
-        const live = omegaRef.current
-        omegaVec.set(live.wx, live.wy, live.wz)
-        const w = omegaVec.length()
-        if (w > 1e-6) {
-          qDot.setFromAxisAngle(omegaVec.clone().normalize(), w * dt)
-          sat.quaternion.premultiply(qDot)
-        }
-      }
-
-      earth.rotation.y += dt * 0.02
-      chaser.position.y = Math.sin(elapsed * 0.7) * 0.03
-      if (phase === 'idle') {
-        net.nodes.forEach((n) => {
-          n.p.x += Math.sin(elapsed * 1.4 + n.i) * 0.00015
-          n.p.y += Math.cos(elapsed * 1.1 + n.j) * 0.00015
-        })
-      }
-
-      syncNetGeometry(net.nodes, netMeshes.lines, netMeshes.pts, netMeshes.cornerMeshes)
+      raf = requestAnimationFrame(tick)
+      const dt = Math.min(0.05, (now - lastFrame) / 1000)
+      lastFrame = now
+      frame++
+      const buf = stateRef.current
+      const range = buf ? applyState(buf) : NaN
+      for (const m of net.materials) m.uniforms.uTime.value = now / 1000
+      earth.rotation.y += dt * 0.004
+      updateCamera(dt)
       controls.update()
+
+      renderer.setScissorTest(false)
+      renderer.setViewport(0, 0, width, height)
+      renderer.clear()
       renderer.render(scene, camera)
 
-      const enclosureRaw = computeEnclosure(net.nodes, sat)
-      let enclosure = 0
-      let status = 'STANDBY'
-      let critical = false
-      if (phase === 'idle') {
-        enclosure = 0
-        status = 'STANDBY'
-      } else if (phase === 'flight') {
-        enclosure = enclosureRaw * 12
-        status = 'NET IN FLIGHT'
-      } else if (phase === 'wrap') {
-        enclosure = Math.min(0.92, 0.28 + wrapT * 0.4 + enclosureRaw * 0.5)
-        status = omegaVec.z > WZ_LIMIT ? 'UNSTABLE CONTACT' : 'ENVELOPING TARGET'
-      } else if (phase === 'secured') {
-        enclosure = 1
-        status = 'SECURED'
-      } else if (phase === 'failed') {
-        enclosure = Math.max(0.06, 0.58 - failT * 0.45)
-        status = 'FAILED - TARGET EJECTED'
-        critical = true
-      }
-      const ke = kineticEnergy(omegaVec)
-      const ne = phase === 'idle' ? 0 : netEnergy(net.nodes, net.springs)
-      let transfer = 0
-      if (phase === 'secured') transfer = 1
-      else if (phase === 'failed') transfer = Math.min(0.42, ne / (initialKe + ne + 1e-6))
-      else if (initialKe > 1e-4) transfer = Math.min(0.95, Math.max(0, (initialKe - ke) / initialKe) * enclosure + (ne / (initialKe + 80)) * 0.15)
-      else if (phase === 'wrap' || phase === 'flight') transfer = enclosure * 0.35
+      gizmo.camera.position.set(0, 0, 4).applyQuaternion(camera.quaternion)
+      gizmo.camera.quaternion.copy(camera.quaternion)
+      renderer.clearDepth()
+      renderer.setScissorTest(true)
+      renderer.setScissor(12, 12, GIZMO_SIZE, GIZMO_SIZE)
+      renderer.setViewport(12, 12, GIZMO_SIZE, GIZMO_SIZE)
+      renderer.render(gizmo.scene, gizmo.camera)
+      renderer.setScissorTest(false)
 
-      telemetryRef.current?.({
-        wx: omegaVec.x,
-        wy: omegaVec.y,
-        wz: omegaVec.z,
-        enclosure: Math.max(0, Math.min(1, enclosure)),
-        energyTransfer: Math.max(0, Math.min(1, transfer)),
-        keSat: ke,
-        keNet: ne,
-        status,
-        phase,
-        contact: phase === 'wrap' || phase === 'secured' || phase === 'failed',
-        warning: omegaRef.current.wz > WZ_LIMIT,
-        critical,
-        approach: APPROACH_SPEED,
-        youngE: YOUNG_E,
-        density: DENSITY,
-        mu: MU,
-        elapsed,
-        material: 'Kevlar 49',
-      })
-
-      raf = requestAnimationFrame(tick)
+      updateReticle(range)
     }
-
     raf = requestAnimationFrame(tick)
-
-    const onResize = () => {
-      const w = mount.clientWidth
-      const h = mount.clientHeight
-      camera.aspect = w / h
-      camera.updateProjectionMatrix()
-      renderer.setSize(w, h)
-    }
-    window.addEventListener('resize', onResize)
 
     return () => {
       cancelAnimationFrame(raf)
-      window.removeEventListener('resize', onResize)
+      observer.disconnect()
       controls.dispose()
+      disposeScene(scene)
+      disposeScene(gizmo.scene)
+      environment.dispose()
+      pmrem.dispose()
       renderer.dispose()
-      if (renderer.domElement.parentNode === mount) mount.removeChild(renderer.domElement)
+      renderer.domElement.remove()
+      apiRef.current = null
     }
-  }, [epoch])
+  }, [stateRef])
 
-  return <div ref={mountRef} className="absolute inset-0 h-full w-full" />
+  useEffect(() => {
+    viewRef.current = view
+    apiRef.current?.applyView(view)
+  }, [view])
+
+  useEffect(() => {
+    layersRef.current = layers
+    apiRef.current?.applyLayers(layers)
+  }, [layers])
+
+  return (
+    <div className="absolute inset-0">
+      <div ref={hostRef} className="absolute inset-0" />
+      <div ref={reticleRef} className="pointer-events-none absolute left-0 top-0 opacity-0 will-change-transform">
+        <div ref={reticleBoxRef} className="absolute -translate-x-1/2 -translate-y-1/2" style={{ width: 60, height: 60 }}>
+          <span className="absolute left-0 top-0 h-2.5 w-2.5 border-l border-t border-slate-300/70" />
+          <span className="absolute right-0 top-0 h-2.5 w-2.5 border-r border-t border-slate-300/70" />
+          <span className="absolute bottom-0 left-0 h-2.5 w-2.5 border-b border-l border-slate-300/70" />
+          <span className="absolute bottom-0 right-0 h-2.5 w-2.5 border-b border-r border-slate-300/70" />
+        </div>
+        <div
+          ref={reticleLabelRef}
+          className="num absolute left-0 top-0 whitespace-nowrap text-[10px] tracking-[0.04em] text-slate-300/90"
+        />
+      </div>
+    </div>
+  )
 }
+
+export default memo(Canvas3D)

@@ -7,4 +7,18 @@ export default defineConfig({
     port: 5173,
     host: true,
   },
+  worker: {
+    format: 'es',
+  },
+  build: {
+    chunkSizeWarningLimit: 700,
+    rollupOptions: {
+      output: {
+        manualChunks: {
+          three: ['three'],
+          react: ['react', 'react-dom'],
+        },
+      },
+    },
+  },
 })
