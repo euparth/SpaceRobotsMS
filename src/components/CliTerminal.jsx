@@ -77,15 +77,24 @@ export default function CliTerminal({ open, lines, onSubmit, onClose }) {
 
   return (
     <div
-      className="absolute inset-x-0 bottom-0 z-30 flex h-[48%] min-h-[220px] flex-col border-t border-ink-600 bg-ink-950/[0.94] backdrop-blur-md"
+      className="fixed inset-0 z-50 flex flex-col bg-ink-950 pt-[env(safe-area-inset-top)] lg:absolute lg:inset-x-0 lg:bottom-0 lg:top-auto lg:z-30 lg:h-[48%] lg:min-h-[220px] lg:border-t lg:border-ink-600 lg:bg-ink-950/[0.94] lg:pt-0 lg:backdrop-blur-md"
       onMouseDown={() => inputRef.current?.focus()}
     >
-      <div className="flex h-8 shrink-0 items-center justify-between border-b border-ink-700 px-3">
+      <div className="flex h-10 shrink-0 items-center justify-between border-b border-ink-700 px-3 lg:h-8">
         <span className="num text-[11px] text-slate-400">
           /cli <span className="text-slate-600">· gnc workbench terminal</span>
         </span>
         <span className="flex items-center gap-2 text-[10.5px] text-slate-500">
-          <Kbd>↑↓</Kbd> history <Kbd>Tab</Kbd> complete <Kbd>Esc</Kbd> close
+          <span className="hidden items-center gap-2 lg:flex">
+            <Kbd>↑↓</Kbd> history <Kbd>Tab</Kbd> complete <Kbd>Esc</Kbd> close
+          </span>
+          <button
+            type="button"
+            onClick={onClose}
+            className="num rounded-[3px] border border-ink-600 px-2.5 py-1 text-[11px] text-slate-300 lg:hidden"
+          >
+            Close
+          </button>
         </span>
       </div>
       <div ref={scrollRef} className="scroll-thin num min-h-0 flex-1 overflow-y-auto px-3 py-2 text-[12px] leading-[18px]">
@@ -101,7 +110,7 @@ export default function CliTerminal({ open, lines, onSubmit, onClose }) {
           </div>
         ))}
       </div>
-      <div className="num flex h-9 shrink-0 items-center gap-2 border-t border-ink-700 px-3 text-[12px]">
+      <div className="num flex h-11 shrink-0 items-center gap-2 border-t border-ink-700 px-3 pb-[env(safe-area-inset-bottom)] text-[12px] lg:h-9 lg:pb-0">
         <span className="text-emerald-400/80">{PROMPT}</span>
         <input
           ref={inputRef}

@@ -28,12 +28,19 @@ const LED_TONE = Object.freeze({
   off: 'bg-ink-600',
 })
 
-export function Led({ label, tone = 'off', title }) {
+export function Led({ label, short, tone = 'off', title }) {
   return (
-    <div title={title} className="flex items-center gap-1.5">
+    <div title={title} className="flex shrink-0 items-center gap-1.5">
       <span className={cx('h-[7px] w-[7px] rounded-[1px]', LED_TONE[tone])} />
-      <span className={cx('num text-[10.5px] tracking-[0.06em]', tone === 'off' ? 'text-slate-600' : 'text-slate-300')}>
-        {label}
+      <span className={cx('num whitespace-nowrap text-[10.5px] tracking-[0.06em]', tone === 'off' ? 'text-slate-600' : 'text-slate-300')}>
+        {short ? (
+          <>
+            <span className="lg:hidden">{short}</span>
+            <span className="hidden lg:inline">{label}</span>
+          </>
+        ) : (
+          label
+        )}
       </span>
     </div>
   )

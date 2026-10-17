@@ -104,7 +104,13 @@ function StateTab({ snapshot, decision }) {
         ))}
       </Section>
 
-      <Section title="Body rates ω" aside={<span className="num text-[10px] text-slate-600">rad/s</span>}>
+      <Section
+        title={
+          <>
+            Body rates <span className="normal-case">ω</span>
+          </>
+        }
+        aside={<span className="num text-[10px] text-slate-600">rad/s</span>}>
         <VectorRow label="ωx" value={snapshot.w[0]} max={5} />
         <VectorRow label="ωy" value={snapshot.w[1]} max={5} />
         <VectorRow label="ωz" value={snapshot.w[2]} max={5} limit={CAPTURE.wzLimit} />

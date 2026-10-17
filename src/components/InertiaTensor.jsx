@@ -39,7 +39,7 @@ function InertiaTensor({ snapshot }) {
   const hb = [IX * w[0], IY * w[1], IZ * w[2]]
 
   return (
-    <div className="flex w-[322px] shrink-0 flex-col border-r border-ink-700 px-3 pb-2.5 pt-2">
+    <div className="flex w-full shrink-0 flex-col border-b border-ink-700 px-3 pb-2.5 pt-2 lg:w-[322px] lg:border-b-0 lg:border-r">
       <div className="flex items-baseline justify-between">
         <Label>Inertia tensor · body frame</Label>
         <span className="num text-[10px] text-slate-600">H_b = I · ω</span>
@@ -78,7 +78,7 @@ function InertiaTensor({ snapshot }) {
         <span className="num w-[64px] text-right text-[9px] tracking-[0.08em] text-slate-600">N·m·s</span>
       </div>
 
-      <div className="mt-auto grid grid-cols-3 gap-px border border-ink-700 bg-ink-700">
+      <div className="mt-3 grid grid-cols-3 gap-px border border-ink-700 bg-ink-700 lg:mt-auto">
         <div className="bg-ink-900 px-2 py-1.5">
           <div className="text-[9px] uppercase tracking-[0.12em] text-slate-500">T</div>
           <div className="num text-[12px] text-slate-100">{fmt(snapshot?.ke, 3)} <span className="text-[9.5px] text-slate-500">J</span></div>

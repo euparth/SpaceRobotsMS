@@ -100,3 +100,25 @@ body {
   cursor: not-allowed;
   opacity: 0.45;
 }
+
+@media (pointer: coarse) {
+  .range {
+    height: 28px;
+  }
+  .range::-webkit-slider-thumb {
+    width: 18px;
+    height: 18px;
+    margin-top: -8px;
+    border-radius: 2px;
+  }
+  .range::-moz-range-thumb {
+    width: 18px;
+    height: 18px;
+  }
+}
+
+@media (max-width: 1023px) {
+  input:not([type='range']) {
+    font-size: 16px;
+  }
+}

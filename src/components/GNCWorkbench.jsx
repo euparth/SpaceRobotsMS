@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { CAPTURE, PRESETS, STRAIN_BANDS } from '../physics/constants.js'
 import { predictOutcome } from '../physics/rigidBody.js'
-import { PHASE } from '../physics/stateLayout.js'
+import { PHASE, PHASE_LABEL } from '../physics/stateLayout.js'
 import { executeCommand } from '../services/cliCommands.js'
 import { TOPICS } from '../services/rosTelemetryNode.js'
 import { STRESS_PALETTE } from '../shaders/stressShader.js'
@@ -11,7 +11,7 @@ import Controls from './Controls.jsx'
 import InertiaTensor from './InertiaTensor.jsx'
 import TelemetryHUD from './TelemetryHUD.jsx'
 import TimeSeriesChart from './TimeSeriesChart.jsx'
-import { Kbd, Label, Led, Segmented, cx, fmt } from './ui.jsx'
+import { Button, Kbd, Label, Led, Segmented, cx, fmt } from './ui.jsx'
 
 const VIEW_IDS = Object.keys(VIEW_PRESETS)
 const VIEW_OPTIONS = VIEW_IDS.map((id) => ({ id, label: VIEW_PRESETS[id].label }))
@@ -84,8 +84,8 @@ function Mark() {
 
 function ChartCard({ title, hint, legend, tabs, children }) {
   return (
-    <div className="flex min-w-[260px] flex-1 flex-col border-r border-ink-700 last:border-r-0">
-      <div className="flex h-8 shrink-0 items-center justify-between gap-3 px-3">
+    <div className="flex min-h-[230px] shrink-0 flex-col border-b border-ink-700 lg:min-h-0 lg:min-w-[260px] lg:flex-1 lg:shrink lg:border-b-0 lg:border-r lg:last:border-r-0">
+      <div className="flex min-h-8 shrink-0 flex-wrap items-center justify-between gap-x-3 gap-y-1 px-3 py-1.5 lg:h-8 lg:flex-nowrap lg:py-0">
         <div className="flex min-w-0 items-center gap-2">
           {tabs ?? <Label className="whitespace-nowrap">{title}</Label>}
           {hint && <span className="num truncate text-[10px] text-slate-600">{hint}</span>}
@@ -108,9 +108,16 @@ function StressLegend({ strainMax }) {
   const scaleMax = STRAIN_BANDS.yield * 1.6
   const at = (v) => `${(Math.min(v, scaleMax) / scaleMax) * 100}%`
   return (
-    <div className="w-[236px] border border-ink-700 bg-ink-950/80 px-2.5 pb-2 pt-1.5 backdrop-blur-sm">
+    <div className="w-[196px] border border-ink-700 bg-ink-950/80 px-2.5 pb-2 pt-1.5 backdrop-blur-sm sm:w-[236px]">
       <div className="flex items-center justify-between">
-        <Label className="text-[9.5px]">Kevlar strain ε · GLSL</Label>
+        <Label className="whitespace-nowrap text-[9.5px]">
+          <span className="sm:hidden">
+            Net strain <span className="normal-case">ε</span>
+          </span>
+          <span className="hidden sm:inline">
+            Kevlar strain <span className="normal-case">ε</span> · GLSL
+          </span>
+        </Label>
         <span className="num text-[10px] text-slate-300">max {fmt((strainMax ?? 0) * 100, 1)}%</span>
       </div>
       <div className="relative mt-1.5 flex h-[5px]">
@@ -124,11 +131,47 @@ function StressLegend({ strainMax }) {
         <span className="absolute -translate-x-1/2" style={{ left: at(STRAIN_BANDS.elastic) }}>5%</span>
         <span className="absolute -translate-x-1/2" style={{ left: at(STRAIN_BANDS.yield) }}>15%</span>
       </div>
-      <div className="mt-1 grid grid-cols-3 text-[9.5px] text-slate-400">
+      <div className="mt-1 hidden grid-cols-3 text-[9.5px] text-slate-400 sm:grid">
         <span>Nominal</span>
         <span className="text-center">Elastic load</span>
         <span className="text-right">Yield</span>
       </div>
+    </div>
+  )
+}
+
+const MOBILE_TABS = Object.freeze([
+  { id: 'control', label: 'Control' },
+  { id: 'telemetry', label: 'Telemetry' },
+  { id: 'plots', label: 'Plots' },
+])
+
+const PHASE_TONE = Object.freeze({
+  [PHASE.IDLE]: 'text-slate-200',
+  [PHASE.FLIGHT]: 'text-sky-300',
+  [PHASE.CONTACT]: 'text-amber-300',
+  [PHASE.CLOSING]: 'text-emerald-300',
+  [PHASE.SECURED]: 'text-emerald-400',
+  [PHASE.EJECTED]: 'text-red-400',
+})
+
+function MobileActionBar({ snapshot, api }) {
+  const phase = snapshot?.phase ?? PHASE.IDLE
+  const label = phase === PHASE.EJECTED ? 'FAILED — EJECTED' : PHASE_LABEL[phase]
+  return (
+    <div className="flex shrink-0 items-center gap-2 border-y border-ink-700 bg-ink-925 px-3 py-2 lg:hidden">
+      <div className="min-w-0 flex-1 leading-tight">
+        <div className="num truncate text-[10px] text-slate-500">
+          {formatMet(snapshot?.t)} · {fmt(snapshot?.timeScale ?? 0, 2)}×
+        </div>
+        <div className={cx('num truncate text-[13px] font-medium tracking-[0.03em]', PHASE_TONE[phase])}>{label}</div>
+      </div>
+      <Button variant="primary" className="h-9 px-4" disabled={phase !== PHASE.IDLE} onClick={api.launch}>
+        Launch
+      </Button>
+      <Button variant="ghost" className="h-9" onClick={api.reset}>
+        Reset
+      </Button>
     </div>
   )
 }
@@ -149,14 +192,21 @@ function TopBar({ snapshot, commanded, bridge, busHz }) {
   else if (phase === PHASE.EJECTED && (snapshot?.contacts ?? 0) > 0) contactTone = 'warn'
 
   return (
-    <header className="flex h-12 shrink-0 items-center gap-4 border-b border-ink-700 bg-ink-925 px-3">
+    <header className="flex shrink-0 flex-wrap items-center gap-x-4 gap-y-2 border-b border-ink-700 bg-ink-925 px-3 pb-2 pt-[max(0.5rem,env(safe-area-inset-top))] lg:h-12 lg:flex-nowrap lg:py-0">
       <div className="flex min-w-0 items-center gap-3">
         <Mark />
         <div className="min-w-0 leading-tight">
           <div className="truncate text-[13px] font-medium text-slate-100">
-            Parth&apos;s MS Thesis <span className="text-slate-600">/</span> Space Debris Capture Digital Twin
+            Parth&apos;s MS Thesis
+            <span className="hidden sm:inline">
+              {' '}
+              <span className="text-slate-600">/</span> Space Debris Capture Digital Twin
+            </span>
           </div>
-          <div className="num truncate text-[10.5px] text-slate-500">GNC workbench v3 · 12U CubeSat · Kevlar 49 net · LEO</div>
+          <div className="num truncate text-[10.5px] text-slate-500">
+            <span className="sm:hidden">Debris capture digital twin · GNC v3</span>
+            <span className="hidden sm:inline">GNC workbench v3 · 12U CubeSat · Kevlar 49 net · LEO</span>
+          </div>
         </div>
       </div>
 
@@ -177,12 +227,12 @@ function TopBar({ snapshot, commanded, bridge, busHz }) {
         </div>
       </div>
 
-      <div className="ml-auto flex items-center gap-4 xl:ml-0">
-        <Led label="GNC_ACTIVE" tone={gncTone} title="Physics worker integrating at publish rate" />
-        <Led label="BUS_CONNECTED" tone={busTone} title={`ROS 2 bus · odom ${busHz.toFixed(1)} Hz`} />
-        <Led label="ROSBRIDGE" tone={bridgeTone} title={bridge.url ?? 'rosbridge offline'} />
-        <Led label="CONTACT" tone={contactTone} title={`Net knots in contact with target · ${snapshot?.contacts ?? 0}`} />
-        <Led label="EJECT_ALERT" tone={ejectTone} title="Twist-out ejection / instability forecast" />
+      <div className="scroll-thin flex w-full items-center justify-between gap-3 overflow-x-auto sm:justify-start sm:gap-4 lg:ml-auto lg:w-auto xl:ml-0">
+        <Led label="GNC_ACTIVE" short="GNC" tone={gncTone} title="Physics worker integrating at publish rate" />
+        <Led label="BUS_CONNECTED" short="BUS" tone={busTone} title={`ROS 2 bus · odom ${busHz.toFixed(1)} Hz`} />
+        <Led label="ROSBRIDGE" short="BRIDGE" tone={bridgeTone} title={bridge.url ?? 'rosbridge offline'} />
+        <Led label="CONTACT" short="CONTACT" tone={contactTone} title={`Net knots in contact with target · ${snapshot?.contacts ?? 0}`} />
+        <Led label="EJECT_ALERT" short="EJECT" tone={ejectTone} title="Twist-out ejection / instability forecast" />
       </div>
     </header>
   )
@@ -193,6 +243,7 @@ export default function GNCWorkbench({ sim }) {
   const [view, setView] = useState('iso')
   const [layers, setLayers] = useState({ vectors: true, axes: true, grid: true, membrane: true })
   const [plot, setPlot] = useState('nutation')
+  const [mobileTab, setMobileTab] = useState('control')
   const [cliOpen, setCliOpen] = useState(false)
   const [cliLines, setCliLines] = useState(BOOT_LINES)
   const [bridge, setBridge] = useState(() => api.graph.bridgeState())
@@ -264,35 +315,44 @@ export default function GNCWorkbench({ sim }) {
   const ejected = snapshot?.phase === PHASE.EJECTED && decision?.status === 'EJECTED'
 
   return (
-    <div className="flex h-screen flex-col bg-ink-950 text-slate-100">
+    <div className="flex h-[100dvh] flex-col overflow-hidden bg-ink-950 text-slate-100">
       <TopBar snapshot={snapshot} commanded={commanded} bridge={bridge} busHz={busHz} />
 
-      <main className="scroll-thin flex min-h-0 flex-1 flex-col overflow-y-auto lg:grid lg:grid-cols-[296px_minmax(0,1fr)_376px] lg:grid-rows-[minmax(0,1fr)_228px] lg:overflow-hidden">
-        <section className="relative order-1 h-[62vh] shrink-0 overflow-hidden bg-ink-950 lg:order-none lg:col-start-2 lg:row-start-1 lg:h-auto">
+      <main className="flex min-h-0 flex-1 flex-col lg:grid lg:grid-cols-[296px_minmax(0,1fr)_376px] lg:grid-rows-[minmax(0,1fr)_228px]">
+        <section className="relative h-[42dvh] min-h-[240px] shrink-0 overflow-hidden bg-ink-950 lg:col-start-2 lg:row-start-1 lg:h-auto lg:min-h-0">
           <Canvas3D stateRef={api.stateRef} view={view} layers={layers} />
 
           <div className="pointer-events-none absolute inset-0 z-10">
-            <div className="pointer-events-auto absolute left-3 top-3 flex flex-wrap items-center gap-2">
-              <Segmented options={VIEW_OPTIONS} value={view} onChange={setView} />
-              <Segmented options={LAYER_OPTIONS} value={activeLayers} onChange={toggleLayer} />
+            <div className="absolute left-2 right-2 top-2 flex items-start justify-between gap-2 lg:left-3 lg:right-auto lg:top-3">
+              <div className="scroll-thin pointer-events-auto flex min-w-0 items-center gap-2 overflow-x-auto">
+                <Segmented options={VIEW_OPTIONS} value={view} onChange={setView} className="shrink-0" />
+                <Segmented options={LAYER_OPTIONS} value={activeLayers} onChange={toggleLayer} className="hidden shrink-0 md:flex" />
+              </div>
+              <button
+                type="button"
+                onClick={() => setCliOpen((o) => !o)}
+                className="num pointer-events-auto flex h-7 shrink-0 items-center gap-1.5 rounded-[3px] border border-ink-600 bg-ink-950/80 px-2 text-[10.5px] text-slate-300 lg:hidden"
+              >
+                <span className="text-emerald-400">›_</span> CLI
+              </button>
             </div>
-            <div className="absolute right-3 top-3">
+            <div className="absolute left-2 top-11 lg:left-auto lg:right-3 lg:top-3">
               <StressLegend strainMax={snapshot?.strainMax} />
             </div>
 
             {ejected && (
-              <div className="absolute left-1/2 top-14 -translate-x-1/2 border border-red-500/60 bg-red-950/85 px-4 py-2 shadow-[0_0_40px_rgba(239,68,68,0.25)] backdrop-blur-sm">
-                <div className="num flex items-center gap-2.5 text-[12px] tracking-[0.06em] text-red-100">
-                  <span className="h-2 w-2 animate-blink rounded-[1px] bg-red-500" />
+              <div className="absolute inset-x-2 bottom-2 border border-red-500/60 bg-red-950/90 px-3 py-2 shadow-[0_0_40px_rgba(239,68,68,0.25)] backdrop-blur-sm lg:inset-x-auto lg:bottom-auto lg:left-1/2 lg:top-14 lg:-translate-x-1/2 lg:px-4">
+                <div className="num flex items-start gap-2.5 text-[10.5px] leading-snug tracking-[0.04em] text-red-100 lg:items-center lg:text-[12px] lg:tracking-[0.06em]">
+                  <span className="mt-1 h-2 w-2 shrink-0 animate-blink rounded-[1px] bg-red-500 lg:mt-0" />
                   CRITICAL INSTABILITY: Z-SPIN &gt; 3.0 RAD/S (TWIST-OUT EJECTION)
                 </div>
-                <div className="num mt-0.5 pl-[18px] text-[10.5px] text-red-300/80">
+                <div className="num mt-0.5 hidden pl-[18px] text-[10.5px] text-red-300/80 sm:block">
                   peak |ωz| {fmt(decision.peakWz)} rad/s · ΔT_z {fmt(decision.excessEnergy)} J · v_eject ≤ {fmt(decision.ejectionSpeed)} m/s
                 </div>
               </div>
             )}
 
-            <div className="num absolute bottom-3 right-3 flex items-center gap-1.5 text-[10.5px] text-slate-500">
+            <div className="num absolute bottom-3 right-3 hidden items-center gap-1.5 text-[10.5px] text-slate-500 lg:flex">
               <Kbd>L</Kbd> launch <Kbd>R</Kbd> reset <Kbd>Space</Kbd> pause <Kbd>V</Kbd> view
               <button
                 type="button"
@@ -302,33 +362,60 @@ export default function GNCWorkbench({ sim }) {
                 <span className="text-emerald-400">›_</span> CLI <Kbd>/</Kbd>
               </button>
             </div>
-            <div className="num absolute bottom-[100px] left-[18px] text-[9px] tracking-[0.12em] text-slate-600">LVLH</div>
+            <div className="num absolute bottom-[100px] left-[18px] hidden text-[9px] tracking-[0.12em] text-slate-600 lg:block">LVLH</div>
           </div>
 
           <CliTerminal open={cliOpen} lines={cliLines} onSubmit={runCommand} onClose={() => setCliOpen(false)} />
         </section>
 
-        <section className="scroll-thin order-2 flex h-[236px] shrink-0 overflow-x-auto overflow-y-hidden border-t border-ink-700 bg-ink-925 lg:order-none lg:col-start-2 lg:row-start-2 lg:h-auto">
-          <InertiaTensor snapshot={snapshot} />
-          <ChartCard title="Energy" hint="J" legend={ENERGY_SERIES}>
-            <TimeSeriesChart history={api.history} series={ENERGY_SERIES} />
-          </ChartCard>
-          <ChartCard
-            tabs={<Segmented options={DYNAMICS_OPTIONS} value={plot} onChange={setPlot} className="h-6" />}
-            hint={DYNAMICS_PLOTS[plot].hint}
-            legend={DYNAMICS_PLOTS[plot].series}
-          >
-            <TimeSeriesChart key={plot} history={api.history} series={DYNAMICS_PLOTS[plot].series} {...DYNAMICS_PLOTS[plot].props} />
-          </ChartCard>
-        </section>
+        <MobileActionBar snapshot={snapshot} api={api} />
 
-        <div className="order-3 min-h-[640px] lg:order-none lg:col-start-1 lg:row-span-2 lg:row-start-1 lg:min-h-0">
-          <Controls api={api} commanded={commanded} snapshot={snapshot} onExport={handleExport} />
-        </div>
-        <div className="order-4 min-h-[640px] lg:order-none lg:col-start-3 lg:row-span-2 lg:row-start-1 lg:min-h-0">
-          <TelemetryHUD snapshot={snapshot} decision={decision} events={events} graph={api.graph} />
+        <div className="min-h-0 flex-1 lg:contents">
+          <section
+            className={cx(
+              mobileTab === 'plots' ? 'flex' : 'hidden',
+              'scroll-thin h-full flex-col overflow-y-auto bg-ink-925 lg:col-start-2 lg:row-start-2 lg:flex lg:h-auto lg:flex-row lg:overflow-x-auto lg:overflow-y-hidden lg:border-t lg:border-ink-700',
+            )}
+          >
+            <InertiaTensor snapshot={snapshot} />
+            <ChartCard title="Energy" hint="J" legend={ENERGY_SERIES}>
+              <TimeSeriesChart history={api.history} series={ENERGY_SERIES} />
+            </ChartCard>
+            <ChartCard
+              tabs={<Segmented options={DYNAMICS_OPTIONS} value={plot} onChange={setPlot} className="h-6" />}
+              hint={DYNAMICS_PLOTS[plot].hint}
+              legend={DYNAMICS_PLOTS[plot].series}
+            >
+              <TimeSeriesChart key={plot} history={api.history} series={DYNAMICS_PLOTS[plot].series} {...DYNAMICS_PLOTS[plot].props} />
+            </ChartCard>
+          </section>
+
+          <div className={cx(mobileTab === 'control' ? 'block' : 'hidden', 'h-full lg:col-start-1 lg:row-span-2 lg:row-start-1 lg:block lg:min-h-0')}>
+            <Controls api={api} commanded={commanded} snapshot={snapshot} onExport={handleExport} />
+          </div>
+          <div className={cx(mobileTab === 'telemetry' ? 'block' : 'hidden', 'h-full lg:col-start-3 lg:row-span-2 lg:row-start-1 lg:block lg:min-h-0')}>
+            <TelemetryHUD snapshot={snapshot} decision={decision} events={events} graph={api.graph} />
+          </div>
         </div>
       </main>
+
+      <nav className="flex shrink-0 border-t border-ink-700 bg-ink-925 pb-[env(safe-area-inset-bottom)] lg:hidden" aria-label="Panels">
+        {MOBILE_TABS.map((t) => (
+          <button
+            key={t.id}
+            type="button"
+            onClick={() => setMobileTab(t.id)}
+            aria-current={mobileTab === t.id ? 'page' : undefined}
+            className={cx(
+              'relative h-12 flex-1 text-[12.5px] font-medium tracking-[0.02em] transition-colors',
+              mobileTab === t.id ? 'text-slate-100' : 'text-slate-500',
+            )}
+          >
+            {t.label}
+            {mobileTab === t.id && <span className="absolute inset-x-8 top-0 h-px bg-slate-200" />}
+          </button>
+        ))}
+      </nav>
     </div>
   )
 }

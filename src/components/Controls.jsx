@@ -101,7 +101,11 @@ export default function Controls({ api, commanded, snapshot, onExport }) {
     <aside className="flex h-full min-h-0 flex-col border-r border-ink-700 bg-ink-925">
       <div className="scroll-thin min-h-0 flex-1 overflow-y-auto">
         <Section
-          title="Initial body rates ω₀"
+          title={
+            <>
+              Initial body rates <span className="normal-case">ω₀</span>
+            </>
+          }
           aside={<span className="num text-[10px] text-slate-600">rad/s · body</span>}
         >
           {AXES.map((a, i) => (
@@ -215,7 +219,7 @@ export default function Controls({ api, commanded, snapshot, onExport }) {
       </div>
 
       <div className="border-t border-ink-700 bg-ink-900 p-3">
-        <div className="grid grid-cols-[minmax(0,1fr)_auto] gap-2">
+        <div className="hidden grid-cols-[minmax(0,1fr)_auto] gap-2 lg:grid">
           <Button variant="primary" disabled={!armed} onClick={api.launch}>
             Launch capture net
             <span className="num rounded-[2px] border border-ink-950/20 px-1 text-[10px] leading-[16px]">L</span>
@@ -224,7 +228,7 @@ export default function Controls({ api, commanded, snapshot, onExport }) {
             Reset
           </Button>
         </div>
-        <div className="mt-2 flex items-center justify-between">
+        <div className="flex items-center justify-between lg:mt-2">
           <Label>Export dataset</Label>
           <div className="flex gap-1.5">
             <Button variant="ghost" className="h-7 px-2.5" onClick={() => onExport('json')}>
