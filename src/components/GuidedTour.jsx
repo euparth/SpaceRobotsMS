@@ -33,6 +33,14 @@ export const TOUR_STEPS = [
 
 export const TOUR_STORAGE_KEY = 'space_debris_tour_seen_v1'
 
+export function markTourAsSeen() {
+  try {
+    localStorage.setItem(TOUR_STORAGE_KEY, 'true')
+  } catch {
+    // ignore storage errors
+  }
+}
+
 export function shouldShowTourOnFirstVisit() {
   try {
     return localStorage.getItem(TOUR_STORAGE_KEY) !== 'true'
@@ -49,14 +57,19 @@ export default function GuidedTour({
 }) {
   const modalRef = useRef(null)
 
+  const handleDismiss = () => {
+    markTourAsSeen()
+    onClose()
+  }
+
   useEffect(() => {
     if (!isTourActive) return
     const onKeyDown = (e) => {
       if (e.key === 'Escape') {
-        onClose()
+        handleDismiss()
       } else if (e.key === 'ArrowRight') {
         if (currentStep < TOUR_STEPS.length - 1) onStepChange(currentStep + 1)
-        else onClose()
+        else handleDismiss()
       } else if (e.key === 'ArrowLeft') {
         if (currentStep > 0) onStepChange(currentStep - 1)
       }
@@ -75,18 +88,18 @@ export default function GuidedTour({
     <>
       {/* Non-intrusive backdrop allowing 3D canvas interaction */}
       <div
-        className="fixed inset-0 z-40 bg-ink-950/20 backdrop-blur-[1px] transition-opacity duration-300"
-        onClick={onClose}
+        className="fixed inset-0 z-40 bg-ink-950/30 backdrop-blur-[1.5px] transition-opacity duration-300"
+        onClick={handleDismiss}
         aria-hidden
       />
 
-      {/* Tour Modal Overlay anchored top-center */}
+      {/* Tour Modal Overlay anchored top-center with safe area headroom */}
       <div
         ref={modalRef}
         role="dialog"
         aria-modal="true"
         aria-label={stepData.title}
-        className="fixed left-1/2 top-3 z-50 w-[calc(100vw-1.5rem)] max-w-lg -translate-x-1/2 rounded-xl border border-cyan-500/40 bg-slate-950/85 p-4 shadow-2xl backdrop-blur-xl transition-all duration-300 ease-out sm:top-5 sm:p-5"
+        className="fixed left-1/2 top-[calc(env(safe-area-inset-top,0px)+3.85rem)] z-50 max-h-[calc(100dvh-5rem)] w-[calc(100vw-1.5rem)] max-w-lg -translate-x-1/2 overflow-y-auto rounded-xl border border-cyan-500/40 bg-slate-950/90 p-4 shadow-2xl backdrop-blur-xl transition-all duration-300 ease-out sm:top-14 sm:p-5"
       >
         {/* Subtle cyan glow line */}
         <div className="absolute inset-x-0 -top-px h-0.5 rounded-t-xl bg-gradient-to-r from-transparent via-cyan-400 to-transparent" />
@@ -104,7 +117,7 @@ export default function GuidedTour({
 
           <button
             type="button"
-            onClick={onClose}
+            onClick={handleDismiss}
             className="rounded px-2 py-0.5 font-mono text-[10px] uppercase tracking-wider text-slate-400 transition hover:bg-slate-800/80 hover:text-slate-200"
             aria-label="Skip tour"
           >
@@ -167,7 +180,7 @@ export default function GuidedTour({
             <button
               type="button"
               onClick={() => {
-                if (isLast) onClose()
+                if (isLast) handleDismiss()
                 else onStepChange(currentStep + 1)
               }}
               className="rounded-md border border-cyan-400/80 bg-cyan-500/20 px-3.5 py-1 font-mono text-xs font-medium text-cyan-200 shadow-[0_0_12px_rgba(34,211,238,0.3)] transition hover:bg-cyan-500/30 hover:text-white active:scale-95"

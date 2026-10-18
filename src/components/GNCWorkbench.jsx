@@ -161,7 +161,7 @@ const PHASE_TONE = Object.freeze({
   [PHASE.EJECTED]: 'text-red-400',
 })
 
-function MobileActionBar({ snapshot, api }) {
+function MobileActionBar({ snapshot, api, onTogglePanels }) {
   const phase = snapshot?.phase ?? PHASE.IDLE
   const label = phase === PHASE.EJECTED ? 'FAILED — EJECTED' : PHASE_LABEL[phase]
   return (
@@ -172,11 +172,22 @@ function MobileActionBar({ snapshot, api }) {
         </div>
         <div className={cx('num truncate text-[13px] font-medium tracking-[0.03em]', PHASE_TONE[phase])}>{label}</div>
       </div>
-      <Button variant="primary" className="h-9 px-4" disabled={phase !== PHASE.IDLE} onClick={api.launch}>
+      <Button variant="primary" className="h-9 px-3 text-xs" disabled={phase !== PHASE.IDLE} onClick={api.launch}>
         Launch
       </Button>
-      <Button variant="ghost" className="h-9" onClick={api.reset}>
+      <Button variant="ghost" className="h-9 px-3 text-xs" onClick={api.reset}>
         Reset
+      </Button>
+      <Button
+        variant="ghost"
+        className="flex h-9 items-center gap-1.5 px-2.5 text-[11px] text-cyan-400 hover:text-cyan-300"
+        onClick={onTogglePanels}
+        title="Full 3D View (Hide Panels)"
+      >
+        <svg className="h-3.5 w-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+          <path d="M8 3H5a2 2 0 0 0-2 2v3m18 0V5a2 2 0 0 0-2-2h-3m0 18h3a2 2 0 0 0 2-2v-3M3 16v3a2 2 0 0 0 2 2h3" />
+        </svg>
+        <span>3D</span>
       </Button>
     </div>
   )
@@ -233,14 +244,14 @@ function TopBar({ snapshot, commanded, bridge, busHz, onTakeTour }) {
         </div>
       </div>
 
-      <div className="scroll-thin flex w-full items-center justify-between gap-3 overflow-x-auto sm:justify-start sm:gap-4 lg:ml-auto lg:w-auto xl:ml-0">
+      <div className="scroll-thin flex w-full items-center gap-2 overflow-x-auto py-0.5 sm:gap-3 lg:ml-auto lg:w-auto xl:ml-0">
         <button
           type="button"
           onClick={onTakeTour}
-          className="num flex h-7 shrink-0 items-center gap-1.5 rounded-[3px] border border-cyan-500/50 bg-cyan-950/60 px-2.5 text-[11px] font-medium tracking-wide text-cyan-300 shadow-[0_0_12px_rgba(34,211,238,0.2)] transition-all hover:border-cyan-400 hover:bg-cyan-500/20 hover:text-white hover:shadow-[0_0_18px_rgba(34,211,238,0.4)] active:scale-95"
+          className="num flex h-6 shrink-0 items-center gap-1.5 rounded-[3px] border border-cyan-500/50 bg-cyan-950/60 px-2 text-[10.5px] font-medium tracking-wide text-cyan-300 shadow-[0_0_12px_rgba(34,211,238,0.2)] transition-all hover:border-cyan-400 hover:bg-cyan-500/20 hover:text-white sm:h-7 sm:px-2.5 sm:text-[11px]"
           title="Replay interactive 3-step guided tour"
         >
-          <svg className="h-3.5 w-3.5 text-cyan-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+          <svg className="h-3 w-3 text-cyan-400 sm:h-3.5 sm:w-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
             <circle cx="12" cy="12" r="10" />
             <polygon points="10 8 16 12 10 16 10 8" fill="currentColor" />
           </svg>
@@ -418,7 +429,13 @@ export default function GNCWorkbench({ sim }) {
           <CliTerminal open={cliOpen} lines={cliLines} onSubmit={runCommand} onClose={() => setCliOpen(false)} />
         </section>
 
-        {!panelsCollapsed && <MobileActionBar snapshot={snapshot} api={api} />}
+        {!panelsCollapsed && (
+          <MobileActionBar
+            snapshot={snapshot}
+            api={api}
+            onTogglePanels={() => setPanelsCollapsed(true)}
+          />
+        )}
 
         <div className={cx(panelsCollapsed ? 'hidden lg:contents' : 'min-h-0 flex-1 lg:contents')}>
           <section
@@ -451,7 +468,7 @@ export default function GNCWorkbench({ sim }) {
 
       <nav
         className={cx(
-          'flex shrink-0 border-t border-ink-700 bg-ink-925 pb-[env(safe-area-inset-bottom)] lg:hidden',
+          'flex shrink-0 items-center border-t border-ink-700 bg-ink-925 pb-[env(safe-area-inset-bottom)] lg:hidden',
           panelsCollapsed && 'hidden',
         )}
         aria-label="Panels"
@@ -464,25 +481,38 @@ export default function GNCWorkbench({ sim }) {
             aria-current={mobileTab === t.id ? 'page' : undefined}
             className={cx(
               'relative h-12 flex-1 text-[12.5px] font-medium tracking-[0.02em] transition-colors',
-              mobileTab === t.id ? 'text-slate-100' : 'text-slate-500',
+              mobileTab === t.id ? 'text-slate-100' : 'text-slate-500 hover:text-slate-300',
             )}
           >
             {t.label}
             {mobileTab === t.id && <span className="absolute inset-x-8 top-0 h-px bg-slate-200" />}
           </button>
         ))}
+        <button
+          type="button"
+          onClick={() => setPanelsCollapsed(true)}
+          className="flex h-12 w-14 shrink-0 items-center justify-center border-l border-ink-800 text-slate-400 transition-colors hover:text-cyan-300 active:scale-95"
+          title="Full 3D view (collapse panels)"
+          aria-label="Collapse panels for full 3D view"
+        >
+          <svg className="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+            <path d="M8 3H5a2 2 0 0 0-2 2v3m18 0V5a2 2 0 0 0-2-2h-3m0 18h3a2 2 0 0 0 2-2v-3M3 16v3a2 2 0 0 0 2 2h3" />
+          </svg>
+        </button>
       </nav>
 
-      {/* Floating Toggle Panels button on viewports < 768px (md:hidden) */}
-      <button
-        type="button"
-        onClick={() => setPanelsCollapsed((p) => !p)}
-        className="num fixed bottom-4 right-4 z-40 flex items-center gap-2 rounded-full border border-cyan-500/60 bg-ink-950/90 px-3.5 py-2 text-[11px] font-medium text-cyan-300 shadow-[0_0_20px_rgba(0,0,0,0.8),0_0_12px_rgba(34,211,238,0.25)] backdrop-blur-md transition-all active:scale-95 md:hidden hover:border-cyan-400 hover:text-white"
-        aria-label={panelsCollapsed ? 'Show HUD panels' : 'Hide HUD panels'}
-      >
-        <span className={cx('flex h-2 w-2 rounded-full', panelsCollapsed ? 'bg-cyan-400 animate-pulse' : 'bg-slate-400')} />
-        <span>{panelsCollapsed ? 'Show Panels' : 'Toggle Panels'}</span>
-      </button>
+      {/* Floating Show Panels button on viewports < 1024px ONLY when panels are collapsed */}
+      {panelsCollapsed && (
+        <button
+          type="button"
+          onClick={() => setPanelsCollapsed(false)}
+          className="num fixed bottom-6 right-4 z-40 flex items-center gap-2 rounded-full border border-cyan-400/80 bg-ink-950/95 px-4 py-2.5 text-[11px] font-medium text-cyan-300 shadow-[0_0_24px_rgba(0,0,0,0.9),0_0_14px_rgba(34,211,238,0.35)] backdrop-blur-md transition-all active:scale-95 lg:hidden hover:border-cyan-300 hover:text-white pb-[max(0.625rem,env(safe-area-inset-bottom))]"
+          aria-label="Show HUD panels"
+        >
+          <span className="flex h-2 w-2 rounded-full bg-cyan-400 animate-pulse" />
+          <span>Show Panels</span>
+        </button>
+      )}
 
       {/* Guided Tour Modal */}
       <GuidedTour
