@@ -7,6 +7,7 @@ import TopicMonitor from './TopicMonitor.jsx'
 import { Label, Metric, Readout, Section, cx, fmt } from './ui.jsx'
 
 const TABS = Object.freeze([
+  { id: 'ai', label: 'AI' },
   { id: 'state', label: 'State' },
   { id: 'ros', label: 'ROS 2' },
   { id: 'model', label: 'Model' },
@@ -229,8 +230,170 @@ function LogTab({ events }) {
   )
 }
 
-export default function TelemetryHUD({ snapshot, decision, events, graph }) {
-  const [tab, setTab] = useState('state')
+function StrainBandBar({ strain }) {
+  const pct = Math.min(100, Math.max(0, (strain || 0) * 100))
+  const elastic = STRAIN_BANDS.elastic * 100
+  const yield_ = STRAIN_BANDS.yield * 100
+  return (
+    <div className="relative h-2 w-full overflow-hidden rounded-[2px] bg-ink-800">
+      <div className="absolute inset-y-0 left-0 bg-sky-500/80" style={{ width: `${Math.min(pct, elastic)}%` }} />
+      {pct > elastic && (
+        <div
+          className="absolute inset-y-0 bg-amber-400/80"
+          style={{ left: `${elastic}%`, width: `${Math.min(pct, yield_) - elastic}%` }}
+        />
+      )}
+      {pct > yield_ && (
+        <div className="absolute inset-y-0 bg-rose-500/80" style={{ left: `${yield_}%`, width: `${pct - yield_}%` }} />
+      )}
+      <span className="absolute inset-y-0 w-px bg-slate-500/80" style={{ left: `${elastic}%` }} title="5%" />
+      <span className="absolute inset-y-0 w-px bg-rose-400/80" style={{ left: `${yield_}%` }} title="15%" />
+    </div>
+  )
+}
+
+function WzChart({ prediction, commanded }) {
+  const trace = prediction?.trace
+  if (!trace) return <div className="num p-3 text-[11px] text-slate-500">No ωz trace yet</div>
+  const w = 320
+  const h = 110
+  const pad = { l: 28, r: 8, t: 8, b: 18 }
+  const innerW = w - pad.l - pad.r
+  const innerH = h - pad.t - pad.b
+  const n = trace.t.length
+  let ymax = CAPTURE.wzLimit * 1.4
+  for (let i = 0; i < n; i++) ymax = Math.max(ymax, Math.abs(trace.wz[i]) * 1.15)
+  ymax = Math.max(ymax, 1)
+  const x = (i) => pad.l + (i / Math.max(1, n - 1)) * innerW
+  const y = (v) => pad.t + (1 - (v + ymax) / (2 * ymax)) * innerH
+  const pts = []
+  for (let i = 0; i < n; i++) pts.push(`${x(i).toFixed(1)},${y(trace.wz[i]).toFixed(1)}`)
+  const flight = prediction.flightTime ?? 0.3
+  const window = prediction.contactWindow ?? 0.25
+  const xFlight = pad.l + (flight / (prediction.horizon || 3.2)) * innerW
+  const xWin = pad.l + ((flight + window) / (prediction.horizon || 3.2)) * innerW
+  // RK4 reference from commanded (sparse compare markers)
+  return (
+    <svg viewBox={`0 0 ${w} ${h}`} className="w-full" role="img" aria-label="Predicted ωz(t) vs twist-out limit">
+      <rect x={pad.l} y={pad.t} width={innerW} height={innerH} fill="#0b0f15" stroke="#1e293b" />
+      <line x1={pad.l} y1={y(CAPTURE.wzLimit)} x2={pad.l + innerW} y2={y(CAPTURE.wzLimit)} stroke="#ef4444" strokeWidth="1" strokeDasharray="3 3" />
+      <line x1={pad.l} y1={y(-CAPTURE.wzLimit)} x2={pad.l + innerW} y2={y(-CAPTURE.wzLimit)} stroke="#ef4444" strokeWidth="1" strokeDasharray="3 3" />
+      <rect x={xFlight} y={pad.t} width={Math.max(1, xWin - xFlight)} height={innerH} fill="#f59e0b" fillOpacity="0.12" />
+      <polyline fill="none" stroke="#22d3ee" strokeWidth="1.4" points={pts.join(' ')} />
+      <text x={pad.l - 4} y={y(CAPTURE.wzLimit) + 3} textAnchor="end" fill="#f87171" fontSize="8" fontFamily="ui-monospace,monospace">
+        +3
+      </text>
+      <text x={pad.l + 2} y={h - 4} fill="#64748b" fontSize="8" fontFamily="ui-monospace,monospace">
+        ωz PINN · contact window amber · ω₀ [{(commanded || [0, 0, 0]).map((v) => v.toFixed(1)).join(',')}]
+      </text>
+    </svg>
+  )
+}
+
+function AiTab({ enabled, prediction, metrics, onArmAutoFire, autoFireArmed, commanded }) {
+  if (!enabled) {
+    return (
+      <div className="p-4 text-[12px] text-slate-500">
+        AI predictor is off. Toggle <span className="text-slate-300">AI PREDICTOR</span> in the top bar to run the PINN surrogate.
+      </div>
+    )
+  }
+  if (!prediction) {
+    return <div className="p-4 text-[12px] text-slate-500">Warming up surrogate…</div>
+  }
+  const p = prediction
+  const secureTone = p.fireNowSecure ? 'ok' : p.captureProbability < 1 ? 'alert' : 'warn'
+  const bandLabel = ['elastic <5%', 'yield 5–15%', 'plastic >15%'][p.strainBand] ?? '—'
+
+  return (
+    <>
+      <Section title="Capture feasibility">
+        <div
+          className={cx(
+            'mx-3 mb-2 border px-3 py-2 text-[12px] leading-snug',
+            secureTone === 'ok' && 'border-emerald-500/50 bg-emerald-950/40 text-emerald-200',
+            secureTone === 'warn' && 'border-amber-500/50 bg-amber-950/40 text-amber-100',
+            secureTone === 'alert' && 'border-rose-500/50 bg-rose-950/40 text-rose-100',
+          )}
+        >
+          {p.statusText}
+        </div>
+        <div className="grid grid-cols-2 gap-x-3 gap-y-1 px-3 pb-2">
+          <Metric label="IF FIRED NOW" value={p.fireNowSecure ? 'SECURE' : 'EJECT'} tone={p.fireNowSecure ? 'ok' : 'alert'} />
+          <Metric label="PHASE SHARE" value={`${fmt(p.captureProbability, 1)}%`} />
+          <Metric label="PEAK |ωz|̂" value={fmt(p.peakWzPred)} unit="rad/s" tone={p.peakWzPred > CAPTURE.wzLimit ? 'alert' : 'default'} />
+          <Metric label="BEST DELAY" value={String(p.optimalLaunchDelayMs)} unit="ms sim" />
+        </div>
+        <div className="flex items-center gap-2 px-3 pb-3">
+          <button
+            type="button"
+            onClick={onArmAutoFire}
+            disabled={!p || autoFireArmed || (p.firstSecureMs == null && !p.fireNowSecure)}
+            className={cx(
+              'num h-8 flex-1 rounded-[3px] border text-[11px] font-medium tracking-wide transition-colors',
+              autoFireArmed
+                ? 'border-emerald-500/60 bg-emerald-950/50 text-emerald-300'
+                : 'border-cyan-500/50 bg-cyan-950/40 text-cyan-200 hover:border-cyan-400 hover:bg-cyan-500/20',
+              'disabled:opacity-50',
+            )}
+          >
+            {autoFireArmed
+              ? 'AUTO-FIRE ARMED'
+              : p.firstSecureMs == null && !p.fireNowSecure
+                ? 'No secure phase — cannot arm'
+                : `Arm auto-fire · +${p.optimalLaunchDelayMs} ms`}
+          </button>
+        </div>
+      </Section>
+
+      <Section title="Impact load (strain head)">
+        <div className="space-y-2 px-3 pb-3">
+          <div className="flex items-baseline justify-between">
+            <span className="num text-[11px] text-slate-400">peak ε̂</span>
+            <span className="num text-[13px] text-slate-100">
+              {fmt(p.peakStrainPct, 2)}% <span className="text-[10px] text-slate-500">· T̂ {fmt(p.peakTensionN, 1)} N/thread</span>
+            </span>
+          </div>
+          <StrainBandBar strain={p.peakStrain} />
+          <div className="num text-[10px] text-slate-500">band: {bandLabel} · not used for capture verdict</div>
+        </div>
+      </Section>
+
+      <Section title="ωz(t) PINN vs twist-out">
+        <WzChart prediction={p} commanded={commanded} />
+      </Section>
+
+      <Section title="Benchmark (measured)">
+        <div className="grid grid-cols-2 gap-x-3 gap-y-1 px-3 pb-3">
+          <Metric label="SURROGATE" value={fmt(p.inferenceLatencyMs, 2)} unit="ms" />
+          <Metric label="COUPLED" value={fmt(p.coupledRolloutMs, 1)} unit="ms" />
+          <Metric label="RIGID" value={fmt(p.rigidRolloutMs, 2)} unit="ms" />
+          <Metric label="SPEEDUP" value={`${fmt(p.solverSpeedupFactor, 1)}×`} />
+          <Metric label="FIDELITY" value={`${fmt(100 * (p.pinnFidelityScore ?? 0), 1)}%`} />
+          <Metric label="MODEL" value={p.modelLabel || 'JS MLP'} />
+        </div>
+        <div className="num px-3 pb-3 text-[10px] leading-relaxed text-slate-500">
+          Held-out capture accuracy vs naive |ωz₀|&gt;3 rule ({fmt(100 * (metrics?.naiveAccuracy ?? 0), 1)}%). Latency and
+          speedup re-measured in-browser; never hard-coded marketing figures.
+        </div>
+      </Section>
+    </>
+  )
+}
+
+export default function TelemetryHUD({
+  snapshot,
+  decision,
+  events,
+  graph,
+  aiEnabled = false,
+  prediction = null,
+  metrics = null,
+  onArmAutoFire,
+  autoFireArmed = false,
+  commanded,
+}) {
+  const [tab, setTab] = useState('ai')
   return (
     <aside className="flex h-full min-h-0 flex-col border-l border-ink-700 bg-ink-925">
       <nav className="flex h-9 shrink-0 items-stretch border-b border-ink-700 px-1" role="tablist">
@@ -242,7 +405,7 @@ export default function TelemetryHUD({ snapshot, decision, events, graph }) {
             aria-selected={tab === t.id}
             onClick={() => setTab(t.id)}
             className={cx(
-              'relative px-3 text-[11.5px] font-medium tracking-[0.02em] transition-colors',
+              'relative px-2.5 text-[11.5px] font-medium tracking-[0.02em] transition-colors sm:px-3',
               tab === t.id ? 'text-slate-100' : 'text-slate-500 hover:text-slate-300',
             )}
           >
@@ -253,6 +416,16 @@ export default function TelemetryHUD({ snapshot, decision, events, graph }) {
         ))}
       </nav>
       <div className={cx('min-h-0 flex-1', tab === 'ros' ? 'flex flex-col' : 'scroll-thin overflow-y-auto')}>
+        {tab === 'ai' && (
+          <AiTab
+            enabled={aiEnabled}
+            prediction={prediction}
+            metrics={metrics}
+            onArmAutoFire={onArmAutoFire}
+            autoFireArmed={autoFireArmed}
+            commanded={commanded}
+          />
+        )}
         {tab === 'state' && <StateTab snapshot={snapshot} decision={decision} />}
         {tab === 'ros' && <TopicMonitor graph={graph} />}
         {tab === 'model' && <ModelTab />}

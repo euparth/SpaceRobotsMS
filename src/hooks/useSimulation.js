@@ -51,6 +51,8 @@ export function useSimulation() {
   const decisionRef = useRef(null)
   const commandedRef = useRef([0, 0, 0])
   const eventListeners = useRef(new Set())
+  const benchmarkListeners = useRef(new Set())
+  const surrogateRef = useRef(null)
   const history = useMemo(() => new TelemetryHistory(3600), [])
   const recorder = useMemo(() => new TelemetryRecorder(), [])
 
@@ -79,8 +81,12 @@ export function useSimulation() {
           stateRef.current = buffer
           snapshotRef.current = snap
           history.push(snap)
-          recorder.record(snap)
-          telemetry.publish(snap, buffer.subarray(NODE_STRAIN_OFFSET, NODE_STRAIN_OFFSET + NODE_COUNT))
+          recorder.record(snap, surrogateRef.current)
+          telemetry.publish(
+            snap,
+            buffer.subarray(NODE_STRAIN_OFFSET, NODE_STRAIN_OFFSET + NODE_COUNT),
+            surrogateRef.current,
+          )
           const now = performance.now()
           if (now - lastUi >= UI_REFRESH_MS) {
             lastUi = now
@@ -98,6 +104,9 @@ export function useSimulation() {
           break
         case 'event':
           pushEvent(data)
+          break
+        case 'benchmark_result':
+          benchmarkListeners.current.forEach((fn) => fn(data))
           break
         default:
           break
@@ -137,11 +146,19 @@ export function useSimulation() {
   )
 
   const launch = useCallback(() => post({ type: 'launch' }), [post])
+  const launchAt = useCallback(
+    (delayMs) => post({ type: 'launch_at', delayMs: Number(delayMs) || 0 }),
+    [post],
+  )
   const reset = useCallback(() => post({ type: 'reset' }), [post])
   const pause = useCallback(() => post({ type: 'pause' }), [post])
   const resume = useCallback(() => post({ type: 'resume' }), [post])
   const setTimeScale = useCallback((value) => post({ type: 'time_scale', value }), [post])
   const setParam = useCallback((key, value) => post({ type: 'set_param', key, value }), [post])
+  const benchmark = useCallback((w) => post({ type: 'benchmark', w }), [post])
+  const setSurrogatePrediction = useCallback((p) => {
+    surrogateRef.current = p
+  }, [])
 
   const exportTelemetry = useCallback(
     (format = 'json') => {
@@ -155,7 +172,11 @@ export function useSimulation() {
         return { ok: true, filename, samples: rows.length }
       }
       const filename = `${base}.json`
-      const dataset = buildDataset(rows, { decision: decisionRef.current, eta: snapshotRef.current?.eta })
+      const dataset = buildDataset(rows, {
+        decision: decisionRef.current,
+        eta: snapshotRef.current?.eta,
+        surrogate: surrogateRef.current,
+      })
       downloadText(filename, JSON.stringify(dataset, null, 2), 'application/json')
       return { ok: true, filename, samples: rows.length }
     },
@@ -169,6 +190,13 @@ export function useSimulation() {
     }
   }, [])
 
+  const subscribeBenchmark = useCallback((fn) => {
+    benchmarkListeners.current.add(fn)
+    return () => {
+      benchmarkListeners.current.delete(fn)
+    }
+  }, [])
+
   const api = useMemo(
     () => ({
       stateRef,
@@ -177,17 +205,38 @@ export function useSimulation() {
       setSpin,
       applyPreset,
       launch,
+      launchAt,
       reset,
       pause,
       resume,
       setTimeScale,
       setParam,
+      benchmark,
+      setSurrogatePrediction,
       exportTelemetry,
       subscribeEvents,
+      subscribeBenchmark,
       getSnapshot: () => snapshotRef.current,
       getCommanded: () => commandedRef.current,
+      getSurrogate: () => surrogateRef.current,
     }),
-    [history, setSpin, applyPreset, launch, reset, pause, resume, setTimeScale, setParam, exportTelemetry, subscribeEvents],
+    [
+      history,
+      setSpin,
+      applyPreset,
+      launch,
+      launchAt,
+      reset,
+      pause,
+      resume,
+      setTimeScale,
+      setParam,
+      benchmark,
+      setSurrogatePrediction,
+      exportTelemetry,
+      subscribeEvents,
+      subscribeBenchmark,
+    ],
   )
 
   return { api, snapshot, decision, events, commanded }

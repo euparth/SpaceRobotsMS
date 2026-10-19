@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useState } from 'react'
 import { CAPTURE, PRESETS, STRAIN_BANDS } from '../physics/constants.js'
 import { predictOutcome } from '../physics/rigidBody.js'
 import { PHASE, PHASE_LABEL } from '../physics/stateLayout.js'
+import { useSurrogate } from '../hooks/useSurrogate.js'
 import { executeCommand } from '../services/cliCommands.js'
 import { TOPICS } from '../services/rosTelemetryNode.js'
 import { STRESS_PALETTE } from '../shaders/stressShader.js'
@@ -21,6 +22,7 @@ const LAYER_OPTIONS = [
   { id: 'axes', label: 'AXES', title: 'Body frame triad' },
   { id: 'grid', label: 'GRID', title: 'LVLH reference grid and line of sight' },
   { id: 'membrane', label: 'MESH', title: 'Strain-shaded membrane between threads' },
+  { id: 'ai', label: 'AI', title: 'PINN neural approach line and contact ring' },
 ]
 
 const ENERGY_SERIES = Object.freeze([
@@ -161,7 +163,7 @@ const PHASE_TONE = Object.freeze({
   [PHASE.EJECTED]: 'text-red-400',
 })
 
-function MobileActionBar({ snapshot, api, onTogglePanels }) {
+function MobileActionBar({ snapshot, api, onTogglePanels, aiEnabled, onToggleAi }) {
   const phase = snapshot?.phase ?? PHASE.IDLE
   const label = phase === PHASE.EJECTED ? 'FAILED — EJECTED' : PHASE_LABEL[phase]
   return (
@@ -172,6 +174,14 @@ function MobileActionBar({ snapshot, api, onTogglePanels }) {
         </div>
         <div className={cx('num truncate text-[13px] font-medium tracking-[0.03em]', PHASE_TONE[phase])}>{label}</div>
       </div>
+      <Button
+        variant="ghost"
+        className={cx('h-9 px-2.5 text-[11px]', aiEnabled ? 'text-cyan-300' : 'text-slate-500')}
+        onClick={onToggleAi}
+        title="Toggle AI predictor"
+      >
+        AI {aiEnabled ? 'ON' : 'OFF'}
+      </Button>
       <Button variant="primary" className="h-9 px-3 text-xs" disabled={phase !== PHASE.IDLE} onClick={api.launch}>
         Launch
       </Button>
@@ -193,7 +203,7 @@ function MobileActionBar({ snapshot, api, onTogglePanels }) {
   )
 }
 
-function TopBar({ snapshot, commanded, bridge, busHz, onTakeTour }) {
+function TopBar({ snapshot, commanded, bridge, busHz, onTakeTour, aiEnabled, onToggleAi, aiTone }) {
   const phase = snapshot?.phase ?? PHASE.IDLE
   const forecast = predictOutcome(commanded).verdict
   const gncTone = !snapshot ? 'off' : snapshot.paused ? 'warn' : snapshot.tickHz > 30 ? 'ok' : 'warn'
@@ -247,6 +257,19 @@ function TopBar({ snapshot, commanded, bridge, busHz, onTakeTour }) {
       <div className="scroll-thin flex w-full items-center gap-2 overflow-x-auto py-0.5 sm:gap-3 lg:ml-auto lg:w-auto xl:ml-0">
         <button
           type="button"
+          onClick={onToggleAi}
+          className={cx(
+            'num flex h-6 shrink-0 items-center gap-1.5 rounded-[3px] border px-2 text-[10.5px] font-medium tracking-wide transition-all sm:h-7 sm:px-2.5 sm:text-[11px]',
+            aiEnabled
+              ? 'border-cyan-500/60 bg-cyan-950/70 text-cyan-200 shadow-[0_0_12px_rgba(34,211,238,0.25)]'
+              : 'border-ink-600 bg-ink-900 text-slate-500 hover:border-slate-500 hover:text-slate-300',
+          )}
+          title="PINN AI surrogate predictor"
+        >
+          AI PREDICTOR {aiEnabled ? 'ON' : 'OFF'}
+        </button>
+        <button
+          type="button"
           onClick={onTakeTour}
           className="num flex h-6 shrink-0 items-center gap-1.5 rounded-[3px] border border-cyan-500/50 bg-cyan-950/60 px-2 text-[10.5px] font-medium tracking-wide text-cyan-300 shadow-[0_0_12px_rgba(34,211,238,0.2)] transition-all hover:border-cyan-400 hover:bg-cyan-500/20 hover:text-white sm:h-7 sm:px-2.5 sm:text-[11px]"
           title="Replay interactive 3-step guided tour"
@@ -262,6 +285,7 @@ function TopBar({ snapshot, commanded, bridge, busHz, onTakeTour }) {
         <Led label="ROSBRIDGE" short="BRIDGE" tone={bridgeTone} title={bridge.url ?? 'rosbridge offline'} />
         <Led label="CONTACT" short="CONTACT" tone={contactTone} title={`Net knots in contact with target · ${snapshot?.contacts ?? 0}`} />
         <Led label="EJECT_ALERT" short="EJECT" tone={ejectTone} title="Twist-out ejection / instability forecast" />
+        <Led label="AI_SURROGATE" short="AI" tone={aiTone} title="PINN surrogate inference active" />
       </div>
     </header>
   )
@@ -269,13 +293,18 @@ function TopBar({ snapshot, commanded, bridge, busHz, onTakeTour }) {
 
 export default function GNCWorkbench({ sim }) {
   const { api, snapshot, decision, events, commanded } = sim
+  const ai = useSurrogate(api, snapshot)
   const [view, setView] = useState('iso')
-  const [layers, setLayers] = useState({ vectors: true, axes: true, grid: true, membrane: true })
+  const [layers, setLayers] = useState({ vectors: true, axes: true, grid: true, membrane: true, ai: true })
   const [plot, setPlot] = useState('nutation')
   const [mobileTab, setMobileTab] = useState('control')
   const [cliOpen, setCliOpen] = useState(false)
   const [cliLines, setCliLines] = useState(BOOT_LINES)
   const [bridge, setBridge] = useState(() => api.graph.bridgeState())
+
+  useEffect(() => {
+    setLayers((l) => ({ ...l, ai: ai.enabled }))
+  }, [ai.enabled])
 
   // Guided Tour and Mobile Viewport State
   const [isTourActive, setIsTourActive] = useState(() => shouldShowTourOnFirstVisit())
@@ -311,10 +340,20 @@ export default function GNCWorkbench({ sim }) {
 
   const runCommand = useCallback(
     (line) => {
-      const result = executeCommand(line, { sim: api, setView, views: VIEW_IDS })
+      const result = executeCommand(line, {
+        sim: api,
+        setView,
+        views: VIEW_IDS,
+        ai: {
+          enabled: ai.enabled,
+          toggle: ai.toggle,
+          prediction: ai.prediction,
+          armAutoFire: ai.armAutoFire,
+        },
+      })
       setCliLines((prev) => (result.clear ? [] : trim([...prev, { kind: 'input', text: line }, ...result.lines])))
     },
-    [api],
+    [api, ai.enabled, ai.toggle, ai.prediction, ai.armAutoFire],
   )
 
   const handleExport = useCallback(
@@ -361,13 +400,35 @@ export default function GNCWorkbench({ sim }) {
   }, [api])
 
   const activeLayers = useMemo(() => Object.keys(layers).filter((k) => layers[k]), [layers])
-  const toggleLayer = useCallback((id) => setLayers((l) => ({ ...l, [id]: !l[id] })), [])
+  const toggleLayer = useCallback((id) => {
+    if (id === 'ai') {
+      ai.toggle()
+      return
+    }
+    setLayers((l) => ({ ...l, [id]: !l[id] }))
+  }, [ai])
   const busHz = api.graph.topic(TOPICS.ODOM)?.rate() ?? 0
   const ejected = snapshot?.phase === PHASE.EJECTED && decision?.status === 'EJECTED'
+  let aiTone = 'off'
+  if (ai.enabled) {
+    if (!ai.prediction) aiTone = 'warn'
+    else if (ai.prediction.fireNowSecure) aiTone = 'ok'
+    else if (ai.prediction.captureProbability < 1) aiTone = 'alert'
+    else aiTone = 'warn'
+  }
 
   return (
     <div className="flex h-[100dvh] flex-col overflow-hidden bg-ink-950 text-slate-100">
-      <TopBar snapshot={snapshot} commanded={commanded} bridge={bridge} busHz={busHz} onTakeTour={handleTakeTour} />
+      <TopBar
+        snapshot={snapshot}
+        commanded={commanded}
+        bridge={bridge}
+        busHz={busHz}
+        onTakeTour={handleTakeTour}
+        aiEnabled={ai.enabled}
+        onToggleAi={ai.toggle}
+        aiTone={aiTone}
+      />
 
       <main className="flex min-h-0 flex-1 flex-col lg:grid lg:grid-cols-[296px_minmax(0,1fr)_376px] lg:grid-rows-[minmax(0,1fr)_228px]">
         <section
@@ -376,7 +437,13 @@ export default function GNCWorkbench({ sim }) {
             panelsCollapsed ? 'h-full min-h-0 flex-1' : 'h-[42dvh] min-h-[240px]',
           )}
         >
-          <Canvas3D stateRef={api.stateRef} view={view} layers={layers} tourHighlight={tourHighlight} />
+          <Canvas3D
+            stateRef={api.stateRef}
+            view={view}
+            layers={layers}
+            tourHighlight={tourHighlight}
+            aiRef={ai.predictionRef}
+          />
 
           <div className="pointer-events-none absolute inset-0 z-10">
             <div className="absolute left-2 right-2 top-2 flex items-start justify-between gap-2 lg:left-3 lg:right-auto lg:top-3">
@@ -434,6 +501,8 @@ export default function GNCWorkbench({ sim }) {
             snapshot={snapshot}
             api={api}
             onTogglePanels={() => setPanelsCollapsed(true)}
+            aiEnabled={ai.enabled}
+            onToggleAi={ai.toggle}
           />
         )}
 
@@ -461,7 +530,18 @@ export default function GNCWorkbench({ sim }) {
             <Controls api={api} commanded={commanded} snapshot={snapshot} onExport={handleExport} tourHighlight={tourHighlight} />
           </div>
           <div className={cx(mobileTab === 'telemetry' ? 'block' : 'hidden', 'h-full lg:col-start-3 lg:row-span-2 lg:row-start-1 lg:block lg:min-h-0')}>
-            <TelemetryHUD snapshot={snapshot} decision={decision} events={events} graph={api.graph} />
+            <TelemetryHUD
+              snapshot={snapshot}
+              decision={decision}
+              events={events}
+              graph={api.graph}
+              aiEnabled={ai.enabled}
+              prediction={ai.prediction}
+              metrics={ai.metrics}
+              onArmAutoFire={ai.armAutoFire}
+              autoFireArmed={ai.autoFireArmed}
+              commanded={commanded}
+            />
           </div>
         </div>
       </main>

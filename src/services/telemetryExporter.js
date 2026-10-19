@@ -33,6 +33,14 @@ export const COLUMNS = Object.freeze([
   ['enclosure', '-'],
   ['strain_max', '-'],
   ['contacts', '-'],
+  ['ai_enabled', '-'],
+  ['ai_fire_now_secure', '-'],
+  ['ai_capture_prob', '%'],
+  ['ai_peak_wz_pred', 'rad/s'],
+  ['ai_peak_strain', '-'],
+  ['ai_optimal_delay_ms', 'ms'],
+  ['ai_latency_ms', 'ms'],
+  ['ai_speedup', '-'],
 ])
 
 const r6 = (v) => (Number.isFinite(v) ? Math.round(v * 1e6) / 1e6 : null)
@@ -49,7 +57,7 @@ export class TelemetryRecorder {
     this.lastT = -1
   }
 
-  record(s) {
+  record(s, ai = null) {
     if (s.t === this.lastT) return
     this.lastT = s.t
     if (this.rows.length >= this.limit) this.rows.splice(0, this.rows.length - this.limit + 1)
@@ -82,11 +90,19 @@ export class TelemetryRecorder {
       enclosure: r6(s.enclosure),
       strain_max: r6(s.strainMax),
       contacts: s.contacts,
+      ai_enabled: ai ? 1 : 0,
+      ai_fire_now_secure: ai ? (ai.fireNowSecure ? 1 : 0) : '',
+      ai_capture_prob: ai ? r6(ai.captureProbability) : '',
+      ai_peak_wz_pred: ai ? r6(ai.peakWzPred) : '',
+      ai_peak_strain: ai ? r6(ai.peakStrain) : '',
+      ai_optimal_delay_ms: ai ? ai.optimalLaunchDelayMs : '',
+      ai_latency_ms: ai ? r6(ai.inferenceLatencyMs) : '',
+      ai_speedup: ai ? r6(ai.solverSpeedupFactor) : '',
     })
   }
 }
 
-export function buildDataset(rows, { decision, eta }) {
+export function buildDataset(rows, { decision, eta, surrogate = null }) {
   return {
     schema: DATASET_SCHEMA,
     generated_at: new Date().toISOString(),
@@ -133,6 +149,16 @@ export function buildDataset(rows, { decision, eta }) {
       },
     },
     outcome: decision,
+    ai_surrogate: surrogate
+      ? {
+          model: surrogate.modelLabel,
+          fidelity: surrogate.pinnFidelityScore,
+          latency_ms: surrogate.inferenceLatencyMs,
+          speedup_vs_coupled: surrogate.solverSpeedupFactor,
+          fire_now_secure: surrogate.fireNowSecure,
+          optimal_launch_delay_ms: surrogate.optimalLaunchDelayMs,
+        }
+      : null,
     columns: COLUMNS.map(([name, unit]) => ({ name, unit })),
     sample_count: rows.length,
     samples: rows,

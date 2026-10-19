@@ -19,6 +19,7 @@ export const COMMANDS = Object.freeze([
   { name: 'ros2', usage: 'ros2 topic list|echo|hz|info · node list · bridge', summary: 'ROS 2 graph introspection' },
   { name: 'show_topics', usage: 'show_topics', summary: 'Topic table: type, rate, message count' },
   { name: 'view', usage: 'view <iso|front|side|top|track>', summary: 'Viewport camera preset' },
+  { name: 'ai', usage: 'ai status | fire | toggle', summary: 'PINN surrogate status, arm auto-fire, or toggle' },
   { name: 'clear', usage: 'clear', summary: 'Clear the terminal' },
 ])
 
@@ -223,6 +224,43 @@ export function executeCommand(input, ctx) {
       if (!ctx.views.includes(args[0])) return fail(`usage: view <${ctx.views.join('|')}>`)
       ctx.setView(args[0])
       return ok(`viewport → ${args[0]}`)
+    }
+    case 'ai': {
+      const sub = (args[0] ?? 'status').toLowerCase()
+      const ai = ctx.ai
+      if (!ai) return fail('AI surrogate not wired')
+      if (sub === 'toggle') {
+        ai.toggle()
+        return ok(`AI predictor → ${ai.enabled ? 'OFF' : 'ON'} (toggled)`)
+      }
+      if (sub === 'fire') {
+        if (!ai.enabled) return warn('AI predictor is OFF — ai toggle first')
+        const p = ai.prediction
+        if (!p) return warn('no prediction yet')
+        const okArm = ai.armAutoFire()
+        return okArm
+          ? ok(`auto-fire armed · delay ${p.optimalLaunchDelayMs} ms sim · ${p.statusText}`)
+          : warn('could not arm auto-fire (idle?)')
+      }
+      if (sub === 'status') {
+        const p = ai.prediction
+        if (!ai.enabled) return ok('AI predictor OFF')
+        if (!p) return warn('AI predictor ON · waiting for first inference')
+        return {
+          lines: [
+            line(`AI ${p.modelLabel} · fidelity ${(100 * (p.pinnFidelityScore ?? 0)).toFixed(1)}% · latency ${f3(p.inferenceLatencyMs)} ms`),
+            line(p.statusText, p.fireNowSecure ? 'ok' : 'warn'),
+            line(
+              `P(secure)=${f3(p.captureProbability)}% · peak |ωz|̂ ${f3(p.peakWzPred)} · delay ${p.optimalLaunchDelayMs} ms · ε̂ ${(100 * p.peakStrain).toFixed(2)}% · T̂ ${f3(p.peakTensionN)} N`,
+            ),
+            line(
+              `speedup ${f3(p.solverSpeedupFactor)}× vs coupled ${f3(p.coupledRolloutMs)} ms (rigid ${f3(p.rigidRolloutMs)} ms)`,
+              'dim',
+            ),
+          ],
+        }
+      }
+      return fail('usage: ai status | fire | toggle')
     }
     default:
       return fail(`command not found: ${name} — type 'help'`)

@@ -1,0 +1,38 @@
+{
+  "trainedAt": "2026-10-19T04:44:47.142Z",
+  "pinn": {
+    "wzRmse": 0.3383844025607616,
+    "captureAccuracy": 0.966,
+    "naiveAccuracy": 0.774,
+    "optimalDelayMaeMs": 703.52,
+    "nTest": 500
+  },
+  "peak": {
+    "rmse": 0.32285915020195566,
+    "accuracy": 0.9333333333333333,
+    "naiveAccuracy": 0.85,
+    "nTest": 180
+  },
+  "strain": {
+    "mode": "continuous",
+    "r2": -0.04850946819284463,
+    "rmse": 0.00473966442054662,
+    "nTest": 600
+  },
+  "captureAccuracy": 0.9466666666666667,
+  "naiveAccuracy": 0.8383333333333334,
+  "beatsNaive": true,
+  "inferenceLatencyMs": 0.36225471993287406,
+  "latencyBudgetMs": 2,
+  "latencyOk": true,
+  "coupledRolloutMsEstimate": 17,
+  "rigidRolloutMsEstimate": 0.2,
+  "speedupVsCoupledEstimate": 2.5506882082323443,
+  "fidelityScore": 0.9466666666666667,
+  "threadArea": 7.853981633974482e-7,
+  "youngsModulus": 120000000000,
+  "wovenEfficiency": 0.002,
+  "label": "JS MLP (physics-informed)",
+  "checkAccuracy": 0.9466666666666667,
+  "checkedAt": "2026-10-19T04:57:27.117Z"
+}

@@ -7,6 +7,7 @@ export const TOPICS = Object.freeze({
   TENSION: '/space_debris/net/tension_mesh',
   CAPTURE: '/space_debris/gnc/capture_status',
   MOMENTUM: '/space_debris/gnc/angular_momentum',
+  SURROGATE: '/space_debris/ai/surrogate',
 })
 
 export const QOS = Object.freeze({
@@ -286,12 +287,14 @@ export function createTwinTelemetryNode(graph) {
   const tension = node.createPublisher('std_msgs/msg/Float32MultiArray', TOPICS.TENSION, QOS.SENSOR_DATA)
   const status = node.createPublisher('std_msgs/msg/String', TOPICS.CAPTURE, QOS.LATCHED)
   const momentum = node.createPublisher('geometry_msgs/msg/Vector3Stamped', TOPICS.MOMENTUM, QOS.SENSOR_DATA)
+  const surrogate = node.createPublisher('std_msgs/msg/String', TOPICS.SURROGATE, QOS.SENSOR_DATA)
   let lastStatus = null
   let frame = 0
+  let lastSurrogateKey = ''
 
   return {
     node,
-    publish(snapshot, strains) {
+    publish(snapshot, strains, ai = null) {
       const { t, q, w, p, v, h } = snapshot
       quatToMatrix(q[0], q[1], q[2], q[3], R)
       const vBody = [
@@ -335,6 +338,31 @@ export function createTwinTelemetryNode(graph) {
       if (current !== lastStatus) {
         lastStatus = current
         status.publish(msgs.string(current))
+      }
+
+      if (ai) {
+        const key = `${ai.fireNowSecure}:${ai.optimalLaunchDelayMs}:${r6(ai.peakWzPred)}:${r6(ai.peakStrain)}`
+        if (key !== lastSurrogateKey) {
+          lastSurrogateKey = key
+          surrogate.publish(
+            msgs.string(
+              JSON.stringify({
+                capture_probability: r6(ai.captureProbability),
+                fire_now_secure: !!ai.fireNowSecure,
+                is_critical_ejection: !!ai.isCriticalEjection,
+                status: ai.statusText,
+                peak_wz_pred: r6(ai.peakWzPred),
+                peak_strain: r6(ai.peakStrain),
+                peak_tension_n: r6(ai.peakTensionN),
+                optimal_launch_delay_ms: ai.optimalLaunchDelayMs,
+                inference_latency_ms: r6(ai.inferenceLatencyMs),
+                solver_speedup: r6(ai.solverSpeedupFactor),
+                fidelity: r6(ai.pinnFidelityScore),
+                model: ai.modelLabel,
+              }),
+            ),
+          )
+        }
       }
     },
     destroy() {

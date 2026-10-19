@@ -37,6 +37,7 @@ const sim = {
   h0Mag: 0,
   peakWz: 0,
   substeps: 0,
+  launchAt: null, // sim-time absolute; fire when IDLE and t >= launchAt
 }
 
 const clamp = (v, lo, hi) => Math.min(hi, Math.max(lo, v))
@@ -84,6 +85,7 @@ function launch() {
     emit('warn', 'launch_net rejected — net already deployed, reset first')
     return
   }
+  sim.launchAt = null
   captureReference()
   sim.tLaunch = sim.t
   sim.peakWz = 0
@@ -94,6 +96,17 @@ function launch() {
     'info',
     `NET FIRED · v_rel ${NET.approachSpeed.toFixed(1)} m/s · standoff ${NET.standoff.toFixed(2)} m · ω [${f3(y[0])}, ${f3(y[1])}, ${f3(y[2])}] rad/s`,
   )
+}
+
+function scheduleLaunch(delaySec) {
+  if (sim.phase !== PHASE.IDLE) {
+    emit('warn', 'launch_at rejected — net already deployed, reset first')
+    return
+  }
+  const d = Math.max(0, Number(delaySec) || 0)
+  sim.launchAt = sim.t + d
+  emit('info', `AUTO-FIRE ARMED · launch in ${(d * 1000).toFixed(0)} ms sim (t=${sim.launchAt.toFixed(3)} s)`)
+  if (d <= 1e-9) launch()
 }
 
 function reset() {
@@ -112,10 +125,97 @@ function reset() {
   sim.damping = 0
   sim.energyAbsorbed = 0
   sim.peakWz = 0
+  sim.launchAt = null
   captureReference()
   self.postMessage({ type: 'reset' })
   postDecision(null)
   emit('info', 'SIM RESET · target re-initialised at LVLH origin, net stowed')
+}
+
+/** Offline rigid-body contact-window peak timing (does not touch live state). */
+function benchRigid(wx, wy, wz) {
+  const h = SOLVER.substep
+  const flight = NET.standoff / NET.approachSpeed
+  const yb = new Float64Array([wx, wy, wz, 1, 0, 0, 0])
+  const t0 = performance.now()
+  for (let t = 0; t < flight - 1e-12; t += h) rk4Step(yb, h, 0)
+  let peak = Math.abs(yb[2])
+  for (let t = 0; t < CAPTURE.decisionWindow - 1e-12; t += h) {
+    rk4Step(yb, h, 0)
+    peak = Math.max(peak, Math.abs(yb[2]))
+  }
+  return { ms: performance.now() - t0, peak }
+}
+
+/** Offline coupled rigid+net impact timing (does not touch live state). */
+function benchCoupled(wx, wy, wz) {
+  const h = SOLVER.substep
+  const yb = new Float64Array([wx, wy, wz, 1, 0, 0, 0])
+  const b = {
+    p: new Float64Array(3),
+    v: new Float64Array(3),
+    R: new Float64Array(9),
+    w: new Float64Array(3),
+    half: CUBESAT.dims.map((d) => d / 2),
+  }
+  const n = new NetSolver()
+  n.launch()
+  const flight = NET.standoff / NET.approachSpeed
+  const limit = flight + CAPTURE.decisionWindow + 0.15
+  let t = 0
+  let tContact = -1
+  let phase = 'flight'
+  let maxStrain = 0
+  let peakWz = 0
+  const t0 = performance.now()
+  while (t < limit) {
+    rk4Step(yb, h, 0)
+    quatToMatrix(yb[3], yb[4], yb[5], yb[6], b.R)
+    const R = b.R
+    b.w[0] = R[0] * yb[0] + R[1] * yb[1] + R[2] * yb[2]
+    b.w[1] = R[3] * yb[0] + R[4] * yb[1] + R[5] * yb[2]
+    b.w[2] = R[6] * yb[0] + R[7] * yb[1] + R[8] * yb[2]
+    n.step(h, b)
+    t += h
+    if (phase === 'flight' && n.contactCount > 0) {
+      phase = 'contact'
+      tContact = t
+      n.drawstring = true
+    }
+    if (phase === 'contact') {
+      peakWz = Math.max(peakWz, Math.abs(yb[2]))
+      if (Math.round(t / h) % 20 === 0) {
+        n.measure()
+        maxStrain = Math.max(maxStrain, n.maxStrain)
+      }
+      if (t - tContact >= CAPTURE.decisionWindow) break
+    }
+  }
+  n.measure()
+  maxStrain = Math.max(maxStrain, n.maxStrain)
+  return { ms: performance.now() - t0, peakWz, maxStrain }
+}
+
+function runBenchmark(wx, wy, wz) {
+  const w = [
+    clamp(Number(wx) || 0, 0, MAX_RATE),
+    clamp(Number(wy) || 0, 0, MAX_RATE),
+    clamp(Number(wz) || 0, 0, MAX_RATE),
+  ]
+  // Warm + average a few passes
+  let rigidMs = 0
+  let coupledMs = 0
+  const N = 3
+  for (let i = 0; i < N; i++) {
+    rigidMs += benchRigid(...w).ms
+    coupledMs += benchCoupled(...w).ms
+  }
+  self.postMessage({
+    type: 'benchmark_result',
+    rigidMs: rigidMs / N,
+    coupledMs: coupledMs / N,
+    w,
+  })
 }
 
 function decide() {
@@ -169,6 +269,10 @@ function substep(h) {
   syncBody()
   net.step(h, body)
   sim.t += h
+
+  if (sim.launchAt != null && sim.phase === PHASE.IDLE && sim.t + 1e-12 >= sim.launchAt) {
+    launch()
+  }
 
   const wz = Math.abs(y[2])
   switch (sim.phase) {
@@ -272,6 +376,9 @@ self.onmessage = ({ data }) => {
     case 'launch':
       launch()
       break
+    case 'launch_at':
+      scheduleLaunch(data.delaySec ?? (Number(data.delayMs) || 0) / 1000)
+      break
     case 'reset':
       reset()
       break
@@ -292,6 +399,11 @@ self.onmessage = ({ data }) => {
         emit('info', `η_weave ← ${net.wovenEfficiency} · EA_eff ${net.axialStiffness.toFixed(1)} N`)
       }
       break
+    case 'benchmark': {
+      const w = data.w ?? [commanded[0], commanded[1], commanded[2]]
+      runBenchmark(w[0], w[1], w[2])
+      break
+    }
     default:
       break
   }

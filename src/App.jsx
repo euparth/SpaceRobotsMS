@@ -28,6 +28,10 @@ export default function App() {
         userInterrupted.current = true
         return api.launch()
       },
+      launchAt: (delayMs) => {
+        userInterrupted.current = true
+        return api.launchAt(delayMs)
+      },
       pause: () => {
         userInterrupted.current = true
         return api.pause()

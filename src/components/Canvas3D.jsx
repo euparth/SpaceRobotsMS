@@ -381,14 +381,19 @@ function disposeScene(root) {
   })
 }
 
-function Canvas3D({ stateRef, view, layers, tourHighlight }) {
+function Canvas3D({ stateRef, view, layers, tourHighlight, aiRef }) {
   const hostRef = useRef(null)
   const reticleRef = useRef(null)
   const reticleBoxRef = useRef(null)
   const reticleLabelRef = useRef(null)
   const viewRef = useRef(view)
   const layersRef = useRef(layers)
+  const aiOverlayRef = useRef(aiRef)
   const apiRef = useRef(null)
+
+  useEffect(() => {
+    aiOverlayRef.current = aiRef
+  }, [aiRef])
 
   useEffect(() => {
     const host = hostRef.current
@@ -458,6 +463,36 @@ function Canvas3D({ stateRef, view, layers, tourHighlight }) {
     let trailCount = 0
     let lastT = -1
 
+    // AI surrogate overlays: approach neural line + contact ring on +Z face
+    const neuralGeom = new THREE.BufferGeometry().setFromPoints([
+      new THREE.Vector3(0, 0, NET.standoff),
+      new THREE.Vector3(0, 0, 0),
+    ])
+    const neuralMat = new THREE.LineBasicMaterial({
+      color: 0x22d3ee,
+      transparent: true,
+      opacity: 0.55,
+      depthTest: false,
+    })
+    const neuralLine = new THREE.Line(neuralGeom, neuralMat)
+    neuralLine.renderOrder = 12
+    neuralLine.visible = false
+    scene.add(neuralLine)
+
+    const ringGeom = new THREE.RingGeometry(0.12, 0.16, 48)
+    const ringMat = new THREE.MeshBasicMaterial({
+      color: 0x22d3ee,
+      transparent: true,
+      opacity: 0.7,
+      side: THREE.DoubleSide,
+      depthTest: false,
+    })
+    const contactRing = new THREE.Mesh(ringGeom, ringMat)
+    contactRing.rotation.x = Math.PI / 2
+    contactRing.visible = false
+    contactRing.renderOrder = 13
+    scene.add(contactRing)
+
     const gizmo = buildGizmo()
 
     const desiredPosition = new THREE.Vector3().fromArray(VIEW_PRESETS.iso.position)
@@ -490,6 +525,9 @@ function Canvas3D({ stateRef, view, layers, tourHighlight }) {
       bodyAxes.visible = l.axes
       reference.visible = l.grid
       net.membrane.visible = l.membrane
+      const aiOn = !!l.ai
+      neuralLine.visible = aiOn
+      contactRing.visible = aiOn
     }
     applyLayers(layersRef.current)
     apiRef.current = { applyView, applyLayers }
@@ -541,6 +579,34 @@ function Canvas3D({ stateRef, view, layers, tourHighlight }) {
       const hMag = hInertial.length()
       hArrow.position.copy(sat.position)
       wArrow.position.copy(sat.position)
+
+      // Neural line from deployer standoff to target; ring on +Z face toward net
+      if (layersRef.current.ai) {
+        const pred = aiOverlayRef.current?.current
+        const secure = pred?.fireNowSecure
+        const col = secure ? 0x34d399 : pred?.captureProbability < 1 ? 0xf43f5e : 0xfbbf24
+        neuralMat.color.setHex(col)
+        ringMat.color.setHex(col)
+        neuralGeom.setFromPoints([
+          new THREE.Vector3(0, 0, NET.standoff),
+          sat.position.clone(),
+        ])
+        neuralGeom.attributes.position.needsUpdate = true
+        // Face toward net: body +Z in LVLH via sat quaternion
+        const face = new THREE.Vector3(0, 0, CUBESAT.dims[2] / 2 + 0.02).applyQuaternion(sat.quaternion)
+        contactRing.position.copy(sat.position).add(face)
+        contactRing.quaternion.copy(sat.quaternion)
+        contactRing.rotateX(Math.PI / 2)
+        const pulse = 0.55 + 0.35 * Math.sin(performance.now() * 0.006)
+        ringMat.opacity = pulse
+        neuralMat.opacity = 0.35 + 0.25 * pulse
+        neuralLine.visible = true
+        contactRing.visible = true
+      } else {
+        neuralLine.visible = false
+        contactRing.visible = false
+      }
+
       hArrow.visible = layersRef.current.vectors && hMag > 1e-4
       wArrow.visible = layersRef.current.vectors && wMag > 1e-4
       if (hMag > 1e-4) {
