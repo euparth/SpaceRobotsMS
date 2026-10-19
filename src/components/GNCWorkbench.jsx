@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { CAPTURE, PRESETS, STRAIN_BANDS } from '../physics/constants.js'
 import { predictOutcome } from '../physics/rigidBody.js'
 import { PHASE, PHASE_LABEL } from '../physics/stateLayout.js'
@@ -11,6 +11,7 @@ import CliTerminal from './CliTerminal.jsx'
 import Controls from './Controls.jsx'
 import GuidedTour, { TOUR_STEPS, shouldShowTourOnFirstVisit } from './GuidedTour.jsx'
 import InertiaTensor from './InertiaTensor.jsx'
+import MobilePredict from './MobilePredict.jsx'
 import TelemetryHUD from './TelemetryHUD.jsx'
 import TimeSeriesChart from './TimeSeriesChart.jsx'
 import { Button, Kbd, Label, Led, Segmented, cx, fmt } from './ui.jsx'
@@ -149,9 +150,9 @@ function StressLegend({ strainMax }) {
 }
 
 const MOBILE_TABS = Object.freeze([
-  { id: 'control', label: 'Control' },
-  { id: 'telemetry', label: 'Telemetry' },
+  { id: 'predict', label: 'Predict' },
   { id: 'plots', label: 'Plots' },
+  { id: 'data', label: 'Data' },
 ])
 
 const PHASE_TONE = Object.freeze({
@@ -297,7 +298,7 @@ export default function GNCWorkbench({ sim }) {
   const [view, setView] = useState('iso')
   const [layers, setLayers] = useState({ vectors: true, axes: true, grid: true, membrane: true, ai: true })
   const [plot, setPlot] = useState('nutation')
-  const [mobileTab, setMobileTab] = useState('control')
+  const [mobileTab, setMobileTab] = useState('predict')
   const [cliOpen, setCliOpen] = useState(false)
   const [cliLines, setCliLines] = useState(BOOT_LINES)
   const [bridge, setBridge] = useState(() => api.graph.bridgeState())
@@ -307,26 +308,66 @@ export default function GNCWorkbench({ sim }) {
   }, [ai.enabled])
 
   // Guided Tour and Mobile Viewport State
-  const [isTourActive, setIsTourActive] = useState(() => shouldShowTourOnFirstVisit())
+  const showTourOnLoad = useMemo(() => shouldShowTourOnFirstVisit(), [])
+  const [isTourActive, setIsTourActive] = useState(showTourOnLoad)
   const [currentStep, setCurrentStep] = useState(0)
   const [panelsCollapsed, setPanelsCollapsed] = useState(false)
   const tourHighlight = isTourActive ? TOUR_STEPS[currentStep]?.highlightKey : null
+  // Demo net auto-fire: wait for Finish on the last tour modal (or fire shortly if tour already seen)
+  const demoAutoFireDone = useRef(false)
+  const tourReplayRef = useRef(false)
+
+  const tryDemoAutoFire = useCallback(() => {
+    if (demoAutoFireDone.current) return
+    if (sim.wasUserInterrupted?.()) return
+    const snap = api.getSnapshot()
+    const commanded = api.getCommanded()
+    const isStillS2 =
+      commanded &&
+      Math.abs(commanded[0] - 1.5) < 1e-3 &&
+      Math.abs(commanded[1] - 1.0) < 1e-3 &&
+      Math.abs(commanded[2] - 0.5) < 1e-3
+    if ((!snap || snap.phase === PHASE.IDLE) && isStillS2) {
+      demoAutoFireDone.current = true
+      api.launch()
+    }
+  }, [api, sim])
 
   const handleStepChange = useCallback((step) => {
     setCurrentStep(step)
     if (step === 0 || step === 2) {
-      setMobileTab('control')
+      setMobileTab('predict')
     } else if (step === 1) {
       setMobileTab('plots')
     }
   }, [])
 
   const handleTakeTour = useCallback(() => {
+    tourReplayRef.current = true
     setIsTourActive(true)
     setCurrentStep(0)
     setPanelsCollapsed(false)
-    setMobileTab('control')
+    setMobileTab('predict')
   }, [])
+
+  const handleTourClose = useCallback(
+    (reason = 'skipped') => {
+      setIsTourActive(false)
+      // Only the first-visit walkthrough arms auto-fire, and only after Next through all steps → Finish
+      if (!tourReplayRef.current && reason === 'finished') {
+        window.setTimeout(() => tryDemoAutoFire(), 400)
+      }
+      tourReplayRef.current = false
+    },
+    [tryDemoAutoFire],
+  )
+
+  // Returning visitors (tour already seen): keep the previous short delayed auto-fire
+  useEffect(() => {
+    if (showTourOnLoad) return undefined
+    const timer = window.setTimeout(() => tryDemoAutoFire(), 2000)
+    return () => window.clearTimeout(timer)
+  }, [showTourOnLoad, tryDemoAutoFire])
 
   useEffect(() => api.graph.subscribe(() => setBridge(api.graph.bridgeState())), [api.graph])
 
@@ -526,10 +567,31 @@ export default function GNCWorkbench({ sim }) {
             </ChartCard>
           </section>
 
-          <div className={cx(mobileTab === 'control' ? 'block' : 'hidden', 'h-full lg:col-start-1 lg:row-span-2 lg:row-start-1 lg:block lg:min-h-0')}>
+          {/* Mobile Design B: Predict tab merges scenario select + AI verdict */}
+          <div className={cx(mobileTab === 'predict' ? 'block' : 'hidden', 'h-full lg:hidden')}>
+            <MobilePredict
+              api={api}
+              commanded={commanded}
+              snapshot={snapshot}
+              aiEnabled={ai.enabled}
+              prediction={ai.prediction}
+              metrics={ai.metrics}
+              onArmAutoFire={ai.armAutoFire}
+              autoFireArmed={ai.autoFireArmed}
+              tourHighlight={tourHighlight}
+            />
+          </div>
+          {/* Desktop left rail: full controls */}
+          <div className="hidden h-full lg:col-start-1 lg:row-span-2 lg:row-start-1 lg:block lg:min-h-0">
             <Controls api={api} commanded={commanded} snapshot={snapshot} onExport={handleExport} tourHighlight={tourHighlight} />
           </div>
-          <div className={cx(mobileTab === 'telemetry' ? 'block' : 'hidden', 'h-full lg:col-start-3 lg:row-span-2 lg:row-start-1 lg:block lg:min-h-0')}>
+          {/* Mobile Data tab + desktop right rail */}
+          <div
+            className={cx(
+              mobileTab === 'data' ? 'block' : 'hidden',
+              'h-full lg:col-start-3 lg:row-span-2 lg:row-start-1 lg:block lg:min-h-0',
+            )}
+          >
             <TelemetryHUD
               snapshot={snapshot}
               decision={decision}
@@ -599,7 +661,7 @@ export default function GNCWorkbench({ sim }) {
         isTourActive={isTourActive}
         currentStep={currentStep}
         onStepChange={handleStepChange}
-        onClose={() => setIsTourActive(false)}
+        onClose={handleTourClose}
       />
     </div>
   )

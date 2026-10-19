@@ -174,7 +174,7 @@ export default function Controls({ api, commanded, snapshot, onExport, tourHighl
                 </span>
                 <span className="flex items-center gap-2">
                   <span className={cx('num rounded-[2px] border px-1 text-[9px] leading-[16px] tracking-[0.08em]', v.className)}>{v.label}</span>
-                  <Kbd>{index + 1}</Kbd>
+                  <Kbd className="hidden lg:inline-flex">{index + 1}</Kbd>
                 </span>
               </button>
             )
@@ -200,16 +200,17 @@ export default function Controls({ api, commanded, snapshot, onExport, tourHighl
             />
             <span className="num text-right text-[12px] text-slate-100">{timeScale.toFixed(2)}×</span>
           </div>
-          <p className="mt-1.5 text-[11px] leading-snug text-slate-500">
+          <p className="mt-1.5 hidden text-[11px] leading-snug text-slate-500 lg:block">
             A {NET.approachSpeed.toFixed(1)} m/s intercept over {NET.standoff.toFixed(1)} m lasts {(NET.standoff / NET.approachSpeed).toFixed(2)} s of sim time.
           </p>
           <Button variant="ghost" className="mt-2.5 w-full" onClick={paused ? api.resume : api.pause}>
             {paused ? 'Resume integration' : 'Pause integration'}
-            <Kbd>Space</Kbd>
+            <Kbd className="hidden lg:inline-flex">Space</Kbd>
           </Button>
         </Section>
 
-        <Section title="Net payload">
+        {/* Full net spec is desktop/reference — on phones it buries S1–S4 and the forecast */}
+        <Section title="Net payload" className="hidden lg:block">
           <Readout label="Material" value={NET.material} />
           <Readout label="Mesh" value={`${NET.size.toFixed(1)} × ${NET.size.toFixed(1)} m`} />
           <Readout label="Lattice" value={`${Math.sqrt(NODE_COUNT)} × ${Math.sqrt(NODE_COUNT)} knots`} />
@@ -224,8 +225,9 @@ export default function Controls({ api, commanded, snapshot, onExport, tourHighl
         </Section>
       </div>
 
-      <div className="border-t border-ink-700 bg-ink-900 p-3">
-        <div className="hidden grid-cols-[minmax(0,1fr)_auto] gap-2 lg:grid">
+      {/* Desktop only: Launch lives in the mobile action bar; export is not a phone demo action */}
+      <div className="hidden border-t border-ink-700 bg-ink-900 p-3 lg:block">
+        <div className="grid grid-cols-[minmax(0,1fr)_auto] gap-2">
           <Button variant="primary" disabled={!armed} onClick={api.launch}>
             Launch capture net
             <span className="num rounded-[2px] border border-ink-950/20 px-1 text-[10px] leading-[16px]">L</span>
@@ -234,7 +236,7 @@ export default function Controls({ api, commanded, snapshot, onExport, tourHighl
             Reset
           </Button>
         </div>
-        <div className="flex items-center justify-between lg:mt-2">
+        <div className="mt-2 flex items-center justify-between">
           <Label>Export dataset</Label>
           <div className="flex gap-1.5">
             <Button variant="ghost" className="h-7 px-2.5" onClick={() => onExport('json')}>

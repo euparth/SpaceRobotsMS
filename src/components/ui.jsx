@@ -119,9 +119,11 @@ export function Button({ variant = 'ghost', className, children, ...props }) {
   )
 }
 
-export function Kbd({ children }) {
+export function Kbd({ children, className }) {
   return (
-    <kbd className="num rounded-[3px] border border-ink-600 bg-ink-850 px-1 text-[10px] leading-[16px] text-slate-400">{children}</kbd>
+    <kbd className={cx('num rounded-[3px] border border-ink-600 bg-ink-850 px-1 text-[10px] leading-[16px] text-slate-400', className)}>
+      {children}
+    </kbd>
   )
 }
 

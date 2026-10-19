@@ -57,19 +57,19 @@ export default function GuidedTour({
 }) {
   const modalRef = useRef(null)
 
-  const handleDismiss = () => {
+  const handleDismiss = (reason = 'skipped') => {
     markTourAsSeen()
-    onClose()
+    onClose(reason)
   }
 
   useEffect(() => {
     if (!isTourActive) return
     const onKeyDown = (e) => {
       if (e.key === 'Escape') {
-        handleDismiss()
+        handleDismiss('skipped')
       } else if (e.key === 'ArrowRight') {
         if (currentStep < TOUR_STEPS.length - 1) onStepChange(currentStep + 1)
-        else handleDismiss()
+        else handleDismiss('finished')
       } else if (e.key === 'ArrowLeft') {
         if (currentStep > 0) onStepChange(currentStep - 1)
       }
@@ -89,7 +89,7 @@ export default function GuidedTour({
       {/* Non-intrusive backdrop allowing 3D canvas interaction */}
       <div
         className="fixed inset-0 z-40 bg-ink-950/30 backdrop-blur-[1.5px] transition-opacity duration-300"
-        onClick={handleDismiss}
+        onClick={() => handleDismiss('skipped')}
         aria-hidden
       />
 
@@ -117,7 +117,7 @@ export default function GuidedTour({
 
           <button
             type="button"
-            onClick={handleDismiss}
+            onClick={() => handleDismiss('skipped')}
             className="rounded px-2 py-0.5 font-mono text-[10px] uppercase tracking-wider text-slate-400 transition hover:bg-slate-800/80 hover:text-slate-200"
             aria-label="Skip tour"
           >
@@ -180,7 +180,7 @@ export default function GuidedTour({
             <button
               type="button"
               onClick={() => {
-                if (isLast) handleDismiss()
+                if (isLast) handleDismiss('finished')
                 else onStepChange(currentStep + 1)
               }}
               className="rounded-md border border-cyan-400/80 bg-cyan-500/20 px-3.5 py-1 font-mono text-xs font-medium text-cyan-200 shadow-[0_0_12px_rgba(34,211,238,0.3)] transition hover:bg-cyan-500/30 hover:text-white active:scale-95"

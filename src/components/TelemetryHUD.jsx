@@ -230,29 +230,7 @@ function LogTab({ events }) {
   )
 }
 
-function StrainBandBar({ strain }) {
-  const pct = Math.min(100, Math.max(0, (strain || 0) * 100))
-  const elastic = STRAIN_BANDS.elastic * 100
-  const yield_ = STRAIN_BANDS.yield * 100
-  return (
-    <div className="relative h-2 w-full overflow-hidden rounded-[2px] bg-ink-800">
-      <div className="absolute inset-y-0 left-0 bg-sky-500/80" style={{ width: `${Math.min(pct, elastic)}%` }} />
-      {pct > elastic && (
-        <div
-          className="absolute inset-y-0 bg-amber-400/80"
-          style={{ left: `${elastic}%`, width: `${Math.min(pct, yield_) - elastic}%` }}
-        />
-      )}
-      {pct > yield_ && (
-        <div className="absolute inset-y-0 bg-rose-500/80" style={{ left: `${yield_}%`, width: `${pct - yield_}%` }} />
-      )}
-      <span className="absolute inset-y-0 w-px bg-slate-500/80" style={{ left: `${elastic}%` }} title="5%" />
-      <span className="absolute inset-y-0 w-px bg-rose-400/80" style={{ left: `${yield_}%` }} title="15%" />
-    </div>
-  )
-}
-
-function WzChart({ prediction, commanded }) {
+export function WzChart({ prediction, commanded }) {
   const trace = prediction?.trace
   if (!trace) return <div className="num p-3 text-[11px] text-slate-500">No ωz trace yet</div>
   const w = 320
@@ -264,27 +242,44 @@ function WzChart({ prediction, commanded }) {
   let ymax = CAPTURE.wzLimit * 1.4
   for (let i = 0; i < n; i++) ymax = Math.max(ymax, Math.abs(trace.wz[i]) * 1.15)
   ymax = Math.max(ymax, 1)
-  const x = (i) => pad.l + (i / Math.max(1, n - 1)) * innerW
+  const horizon = prediction.horizon || 3.2
+  const xAt = (tSec) => pad.l + (Math.min(horizon, Math.max(0, tSec)) / horizon) * innerW
   const y = (v) => pad.t + (1 - (v + ymax) / (2 * ymax)) * innerH
   const pts = []
-  for (let i = 0; i < n; i++) pts.push(`${x(i).toFixed(1)},${y(trace.wz[i]).toFixed(1)}`)
+  for (let i = 0; i < n; i++) {
+    const xi = pad.l + (i / Math.max(1, n - 1)) * innerW
+    pts.push(`${xi.toFixed(1)},${y(trace.wz[i]).toFixed(1)}`)
+  }
   const flight = prediction.flightTime ?? 0.3
   const window = prediction.contactWindow ?? 0.25
-  const xFlight = pad.l + (flight / (prediction.horizon || 3.2)) * innerW
-  const xWin = pad.l + ((flight + window) / (prediction.horizon || 3.2)) * innerW
-  // RK4 reference from commanded (sparse compare markers)
+  // Shade the recommended fire contact window (delay + flight … + window)
+  const delaySec =
+    prediction.fireNowSecure || prediction.firstSecureMs == null
+      ? 0
+      : (prediction.optimalLaunchDelayMs ?? 0) / 1000
+  const t0 = delaySec + flight
+  const t1 = t0 + window
+  const shadeTone = prediction.fireNowSecure ? '#34d399' : prediction.firstSecureMs == null ? '#f43f5e' : '#fbbf24'
   return (
     <svg viewBox={`0 0 ${w} ${h}`} className="w-full" role="img" aria-label="Predicted ωz(t) vs twist-out limit">
       <rect x={pad.l} y={pad.t} width={innerW} height={innerH} fill="#0b0f15" stroke="#1e293b" />
       <line x1={pad.l} y1={y(CAPTURE.wzLimit)} x2={pad.l + innerW} y2={y(CAPTURE.wzLimit)} stroke="#ef4444" strokeWidth="1" strokeDasharray="3 3" />
       <line x1={pad.l} y1={y(-CAPTURE.wzLimit)} x2={pad.l + innerW} y2={y(-CAPTURE.wzLimit)} stroke="#ef4444" strokeWidth="1" strokeDasharray="3 3" />
-      <rect x={xFlight} y={pad.t} width={Math.max(1, xWin - xFlight)} height={innerH} fill="#f59e0b" fillOpacity="0.12" />
+      <rect
+        x={xAt(t0)}
+        y={pad.t}
+        width={Math.max(1, xAt(t1) - xAt(t0))}
+        height={innerH}
+        fill={shadeTone}
+        fillOpacity="0.18"
+      />
       <polyline fill="none" stroke="#22d3ee" strokeWidth="1.4" points={pts.join(' ')} />
       <text x={pad.l - 4} y={y(CAPTURE.wzLimit) + 3} textAnchor="end" fill="#f87171" fontSize="8" fontFamily="ui-monospace,monospace">
         +3
       </text>
       <text x={pad.l + 2} y={h - 4} fill="#64748b" fontSize="8" fontFamily="ui-monospace,monospace">
-        ωz PINN · contact window amber · ω₀ [{(commanded || [0, 0, 0]).map((v) => v.toFixed(1)).join(',')}]
+        ωz MLP · window at {delaySec > 0 ? `+${Math.round(delaySec * 1000)} ms` : 't=0'} · ω₀ [
+        {(commanded || [0, 0, 0]).map((v) => v.toFixed(1)).join(',')}]
       </text>
     </svg>
   )
@@ -302,8 +297,8 @@ function AiTab({ enabled, prediction, metrics, onArmAutoFire, autoFireArmed, com
     return <div className="p-4 text-[12px] text-slate-500">Warming up surrogate…</div>
   }
   const p = prediction
-  const secureTone = p.fireNowSecure ? 'ok' : p.captureProbability < 1 ? 'alert' : 'warn'
-  const bandLabel = ['elastic <5%', 'yield 5–15%', 'plastic >15%'][p.strainBand] ?? '—'
+  const neverSecure = p.firstSecureMs == null && !p.fireNowSecure
+  const secureTone = p.fireNowSecure ? 'ok' : neverSecure ? 'alert' : 'warn'
 
   return (
     <>
@@ -328,7 +323,7 @@ function AiTab({ enabled, prediction, metrics, onArmAutoFire, autoFireArmed, com
           <button
             type="button"
             onClick={onArmAutoFire}
-            disabled={!p || autoFireArmed || (p.firstSecureMs == null && !p.fireNowSecure)}
+            disabled={!p || autoFireArmed || neverSecure}
             className={cx(
               'num h-8 flex-1 rounded-[3px] border text-[11px] font-medium tracking-wide transition-colors',
               autoFireArmed
@@ -339,27 +334,14 @@ function AiTab({ enabled, prediction, metrics, onArmAutoFire, autoFireArmed, com
           >
             {autoFireArmed
               ? 'AUTO-FIRE ARMED'
-              : p.firstSecureMs == null && !p.fireNowSecure
+              : neverSecure
                 ? 'No secure phase — cannot arm'
                 : `Arm auto-fire · +${p.optimalLaunchDelayMs} ms`}
           </button>
         </div>
       </Section>
 
-      <Section title="Impact load (strain head)">
-        <div className="space-y-2 px-3 pb-3">
-          <div className="flex items-baseline justify-between">
-            <span className="num text-[11px] text-slate-400">peak ε̂</span>
-            <span className="num text-[13px] text-slate-100">
-              {fmt(p.peakStrainPct, 2)}% <span className="text-[10px] text-slate-500">· T̂ {fmt(p.peakTensionN, 1)} N/thread</span>
-            </span>
-          </div>
-          <StrainBandBar strain={p.peakStrain} />
-          <div className="num text-[10px] text-slate-500">band: {bandLabel} · not used for capture verdict</div>
-        </div>
-      </Section>
-
-      <Section title="ωz(t) PINN vs twist-out">
+      <Section title="ωz(t) vs twist-out">
         <WzChart prediction={p} commanded={commanded} />
       </Section>
 
@@ -374,7 +356,7 @@ function AiTab({ enabled, prediction, metrics, onArmAutoFire, autoFireArmed, com
         </div>
         <div className="num px-3 pb-3 text-[10px] leading-relaxed text-slate-500">
           Held-out capture accuracy vs naive |ωz₀|&gt;3 rule ({fmt(100 * (metrics?.naiveAccuracy ?? 0), 1)}%). Latency and
-          speedup re-measured in-browser; never hard-coded marketing figures.
+          speedup re-measured in-browser. Strain head withheld from demo (held-out R² not useful yet).
         </div>
       </Section>
     </>
