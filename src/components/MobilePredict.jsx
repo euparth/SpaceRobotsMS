@@ -93,6 +93,7 @@ export default function MobilePredict({
   onArmAutoFire,
   autoFireArmed,
   tourHighlight,
+  onScroll,
 }) {
   const [ratesOpen, setRatesOpen] = useState(false)
   const phase = snapshot?.phase ?? PHASE.IDLE
@@ -115,7 +116,7 @@ export default function MobilePredict({
 
   return (
     <aside className="flex h-full min-h-0 flex-col border-r border-ink-700 bg-ink-925 lg:hidden">
-      <div className="scroll-thin min-h-0 flex-1 overflow-y-auto">
+      <div className="scroll-thin min-h-0 flex-1 overflow-y-auto overscroll-contain" onScroll={onScroll}>
         {!aiEnabled && (
           <div className="border-b border-ink-700 px-3 py-2 text-[12px] text-slate-500">
             AI predictor is off — toggle <span className="text-slate-300">AI ON</span> in the action bar.

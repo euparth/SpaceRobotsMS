@@ -312,10 +312,27 @@ export default function GNCWorkbench({ sim }) {
   const [isTourActive, setIsTourActive] = useState(showTourOnLoad)
   const [currentStep, setCurrentStep] = useState(0)
   const [panelsCollapsed, setPanelsCollapsed] = useState(false)
+  // Mobile bottom sheet: scroll down → panel rises over the 3D view; scroll to top → falls away
+  const [sheetLifted, setSheetLifted] = useState(false)
   const tourHighlight = isTourActive ? TOUR_STEPS[currentStep]?.highlightKey : null
   // Demo net auto-fire: wait for Finish on the last tour modal (or fire shortly if tour already seen)
   const demoAutoFireDone = useRef(false)
   const tourReplayRef = useRef(false)
+
+  const handleSheetScroll = useCallback((e) => {
+    if (typeof window !== 'undefined' && window.matchMedia('(min-width: 1024px)').matches) return
+    const st = e.currentTarget.scrollTop
+    setSheetLifted((prev) => {
+      if (!prev && st > 12) return true
+      if (prev && st <= 2) return false
+      return prev
+    })
+  }, [])
+
+  // Reset sheet when switching mobile tabs so the 3D peek returns
+  useEffect(() => {
+    setSheetLifted(false)
+  }, [mobileTab])
 
   const tryDemoAutoFire = useCallback(() => {
     if (demoAutoFireDone.current) return
@@ -474,8 +491,12 @@ export default function GNCWorkbench({ sim }) {
       <main className="flex min-h-0 flex-1 flex-col lg:grid lg:grid-cols-[296px_minmax(0,1fr)_376px] lg:grid-rows-[minmax(0,1fr)_228px]">
         <section
           className={cx(
-            'relative shrink-0 overflow-hidden bg-ink-950 transition-all duration-300 lg:col-start-2 lg:row-start-1 lg:h-auto lg:min-h-0',
-            panelsCollapsed ? 'h-full min-h-0 flex-1' : 'h-[42dvh] min-h-[240px]',
+            'relative shrink-0 overflow-hidden bg-ink-950 transition-[height] duration-300 ease-out lg:col-start-2 lg:row-start-1 lg:h-auto lg:min-h-0',
+            panelsCollapsed
+              ? 'h-full min-h-0 flex-1'
+              : sheetLifted
+                ? 'h-[12dvh] min-h-[72px] max-h-[96px]'
+                : 'h-[42dvh] min-h-[240px]',
           )}
         >
           <Canvas3D
@@ -485,6 +506,15 @@ export default function GNCWorkbench({ sim }) {
             tourHighlight={tourHighlight}
             aiRef={ai.predictionRef}
           />
+          {/* Tap the peek of the viewport to drop the sheet and show the 3D view again */}
+          {sheetLifted && !panelsCollapsed && (
+            <button
+              type="button"
+              className="absolute inset-0 z-20 lg:hidden"
+              aria-label="Show 3D view"
+              onClick={() => setSheetLifted(false)}
+            />
+          )}
 
           <div className="pointer-events-none absolute inset-0 z-10">
             <div className="absolute left-2 right-2 top-2 flex items-start justify-between gap-2 lg:left-3 lg:right-auto lg:top-3">
@@ -547,12 +577,26 @@ export default function GNCWorkbench({ sim }) {
           />
         )}
 
+        {/* Sheet grabber — tap to lift/drop the panel over the 3D view (phones only) */}
+        {!panelsCollapsed && (
+          <button
+            type="button"
+            className="flex h-5 w-full shrink-0 items-center justify-center border-b border-ink-700 bg-ink-925 lg:hidden"
+            aria-label={sheetLifted ? 'Show 3D view' : 'Expand panel'}
+            aria-pressed={sheetLifted}
+            onClick={() => setSheetLifted((v) => !v)}
+          >
+            <span className="h-1 w-10 rounded-full bg-ink-500" />
+          </button>
+        )}
+
         <div className={cx(panelsCollapsed ? 'hidden lg:contents' : 'min-h-0 flex-1 lg:contents')}>
           <section
             className={cx(
               mobileTab === 'plots' ? 'flex' : 'hidden',
               'scroll-thin h-full flex-col overflow-y-auto bg-ink-925 lg:col-start-2 lg:row-start-2 lg:flex lg:h-auto lg:flex-row lg:overflow-x-auto lg:overflow-y-hidden lg:border-t lg:border-ink-700',
             )}
+            onScroll={handleSheetScroll}
           >
             <InertiaTensor snapshot={snapshot} />
             <ChartCard title="Energy" hint="J" legend={ENERGY_SERIES} highlighted={tourHighlight === 'step2'}>
@@ -579,6 +623,7 @@ export default function GNCWorkbench({ sim }) {
               onArmAutoFire={ai.armAutoFire}
               autoFireArmed={ai.autoFireArmed}
               tourHighlight={tourHighlight}
+              onScroll={handleSheetScroll}
             />
           </div>
           {/* Desktop left rail: full controls */}
@@ -603,6 +648,7 @@ export default function GNCWorkbench({ sim }) {
               onArmAutoFire={ai.armAutoFire}
               autoFireArmed={ai.autoFireArmed}
               commanded={commanded}
+              onScroll={handleSheetScroll}
             />
           </div>
         </div>

@@ -374,6 +374,7 @@ export default function TelemetryHUD({
   onArmAutoFire,
   autoFireArmed = false,
   commanded,
+  onScroll,
 }) {
   const [tab, setTab] = useState('ai')
   return (
@@ -397,7 +398,10 @@ export default function TelemetryHUD({
           </button>
         ))}
       </nav>
-      <div className={cx('min-h-0 flex-1', tab === 'ros' ? 'flex flex-col' : 'scroll-thin overflow-y-auto')}>
+      <div
+        className={cx('min-h-0 flex-1 overscroll-contain', tab === 'ros' ? 'flex flex-col' : 'scroll-thin overflow-y-auto')}
+        onScroll={onScroll}
+      >
         {tab === 'ai' && (
           <AiTab
             enabled={aiEnabled}
