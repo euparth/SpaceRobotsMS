@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { CAPTURE, MAX_RATE, NET, PRESETS, SOLVER } from '../physics/constants.js'
 import { NET_MASS, NODE_COUNT } from '../physics/netTopology.js'
 import { predictOutcome, principalAxes } from '../physics/rigidBody.js'
@@ -90,6 +90,15 @@ export default function Controls({ api, commanded, snapshot, onExport, tourHighl
   const prediction = predictOutcome(commanded)
   const verdict = VERDICT[prediction.verdict]
   const [timeScale, setTimeScale] = useState(SOLVER.defaultTimeScale)
+  const sentScale = useRef(SOLVER.defaultTimeScale)
+  // Follow the worker's rate when it changes from elsewhere (CLI `time_scale`), but not
+  // mid-drag, where a lagging snapshot would yank the thumb back.
+  const workerScale = snapshot?.timeScale
+  useEffect(() => {
+    if (!Number.isFinite(workerScale) || Math.abs(workerScale - sentScale.current) < 1e-4) return
+    sentScale.current = workerScale
+    setTimeScale(workerScale)
+  }, [workerScale])
 
   const setAxis = (i, v) => {
     const next = [...commanded]
@@ -193,6 +202,7 @@ export default function Controls({ api, commanded, snapshot, onExport, tourHighl
               aria-label="time scale"
               onChange={(e) => {
                 const v = Number(e.target.value)
+                sentScale.current = v
                 setTimeScale(v)
                 api.setTimeScale(v)
               }}

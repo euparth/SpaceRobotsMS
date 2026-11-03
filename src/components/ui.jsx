@@ -35,8 +35,8 @@ export function Led({ label, short, tone = 'off', title }) {
       <span className={cx('num whitespace-nowrap text-[10.5px] tracking-[0.06em]', tone === 'off' ? 'text-slate-600' : 'text-slate-300')}>
         {short ? (
           <>
-            <span className="lg:hidden">{short}</span>
-            <span className="hidden lg:inline">{label}</span>
+            <span className="2xl:hidden">{short}</span>
+            <span className="hidden 2xl:inline">{label}</span>
           </>
         ) : (
           label

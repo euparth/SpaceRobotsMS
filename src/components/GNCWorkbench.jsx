@@ -164,9 +164,10 @@ const PHASE_TONE = Object.freeze({
   [PHASE.EJECTED]: 'text-red-400',
 })
 
-function MobileActionBar({ snapshot, api, onTogglePanels, aiEnabled, onToggleAi }) {
+function MobileActionBar({ snapshot, decision, api, onTogglePanels, aiEnabled, onToggleAi }) {
   const phase = snapshot?.phase ?? PHASE.IDLE
-  const label = phase === PHASE.EJECTED ? 'FAILED — EJECTED' : PHASE_LABEL[phase]
+  let label = PHASE_LABEL[phase]
+  if (phase === PHASE.EJECTED) label = decision?.status === 'MISS' ? 'MISSED' : 'EJECTED'
   return (
     <div className="flex shrink-0 items-center gap-2 border-y border-ink-700 bg-ink-925 px-3 py-2 lg:hidden">
       <div className="min-w-0 flex-1 leading-tight">
@@ -177,7 +178,7 @@ function MobileActionBar({ snapshot, api, onTogglePanels, aiEnabled, onToggleAi 
       </div>
       <Button
         variant="ghost"
-        className={cx('h-9 px-2.5 text-[11px]', aiEnabled ? 'text-cyan-300' : 'text-slate-500')}
+        className={cx('hidden h-9 px-2.5 text-[11px] sm:inline-flex', aiEnabled ? 'text-cyan-300' : 'text-slate-500')}
         onClick={onToggleAi}
         title="Toggle AI predictor"
       >
@@ -198,7 +199,7 @@ function MobileActionBar({ snapshot, api, onTogglePanels, aiEnabled, onToggleAi 
         <svg className="h-3.5 w-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
           <path d="M8 3H5a2 2 0 0 0-2 2v3m18 0V5a2 2 0 0 0-2-2h-3m0 18h3a2 2 0 0 0 2-2v-3M3 16v3a2 2 0 0 0 2 2h3" />
         </svg>
-        <span>3D</span>
+        <span className="hidden min-[400px]:inline">3D</span>
       </Button>
     </div>
   )
@@ -220,7 +221,7 @@ function TopBar({ snapshot, commanded, bridge, busHz, onTakeTour, aiEnabled, onT
   else if (phase === PHASE.EJECTED && (snapshot?.contacts ?? 0) > 0) contactTone = 'warn'
 
   return (
-    <header className="flex shrink-0 flex-wrap items-center gap-x-4 gap-y-2 border-b border-ink-700 bg-ink-925 px-3 pb-2 pt-[max(0.5rem,env(safe-area-inset-top))] lg:h-12 lg:flex-nowrap lg:py-0">
+    <header className="flex shrink-0 flex-wrap items-center gap-x-4 gap-y-2 border-b border-ink-700 bg-ink-925 px-3 pb-2 pt-[max(0.5rem,env(safe-area-inset-top))] short:flex-nowrap short:pb-1 short:pt-1 lg:h-12 lg:flex-nowrap lg:py-0">
       <div className="flex min-w-0 items-center gap-3">
         <Mark />
         <div className="min-w-0 leading-tight">
@@ -231,7 +232,7 @@ function TopBar({ snapshot, commanded, bridge, busHz, onTakeTour, aiEnabled, onT
               <span className="text-slate-600">/</span> Space Debris Capture Digital Twin
             </span>
           </div>
-          <div className="num truncate text-[10.5px] text-slate-500">
+          <div className="num truncate text-[10.5px] text-slate-500 short:hidden">
             <span className="sm:hidden">Debris capture digital twin · GNC v3</span>
             <span className="hidden sm:inline">GNC workbench v3 · 12U CubeSat · Kevlar 49 net · LEO</span>
           </div>
@@ -247,15 +248,15 @@ function TopBar({ snapshot, commanded, bridge, busHz, onTakeTour, aiEnabled, onT
           <span className="text-[9.5px] tracking-[0.12em] text-slate-500">RATE</span>
           <span className="text-slate-100">{fmt(snapshot?.timeScale ?? 0, 2)}×</span>
         </div>
-        <div className="flex items-center gap-2 px-3">
+        <div className="hidden items-center gap-2 px-3 2xl:flex">
           <span className="text-[9.5px] tracking-[0.12em] text-slate-500">WORKER</span>
-          <span className="text-slate-100">
+          <span className="whitespace-nowrap text-slate-100">
             {fmt(snapshot?.tickHz ?? 0, 0)} Hz · {fmt(snapshot?.solverMs ?? 0, 2)} ms
           </span>
         </div>
       </div>
 
-      <div className="scroll-thin flex w-full items-center gap-2 overflow-x-auto py-0.5 sm:gap-3 lg:ml-auto lg:w-auto xl:ml-0">
+      <div className="scroll-thin flex w-full items-center gap-2 overflow-x-auto py-0.5 sm:gap-3 short:ml-auto short:w-auto lg:ml-auto lg:w-auto xl:ml-0">
         <button
           type="button"
           onClick={onToggleAi}
@@ -432,7 +433,10 @@ export default function GNCWorkbench({ sim }) {
   useEffect(() => {
     const onKey = (e) => {
       const tag = e.target?.tagName
-      if (tag === 'INPUT' || tag === 'TEXTAREA' || e.metaKey || e.ctrlKey || e.altKey) return
+      if (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT' || e.target?.isContentEditable) return
+      if (e.metaKey || e.ctrlKey || e.altKey || isTourActive) return
+      // Space/Enter on a focused button or link must activate it, not pause the sim
+      if ((e.key === ' ' || e.key === 'Enter') && (tag === 'BUTTON' || tag === 'A')) return
       const snap = api.getSnapshot()
       if (e.key === '/' || e.key === '`') {
         e.preventDefault()
@@ -455,7 +459,7 @@ export default function GNCWorkbench({ sim }) {
     }
     window.addEventListener('keydown', onKey)
     return () => window.removeEventListener('keydown', onKey)
-  }, [api])
+  }, [api, isTourActive])
 
   const activeLayers = useMemo(() => Object.keys(layers).filter((k) => layers[k]), [layers])
   const toggleLayer = useCallback((id) => {
@@ -467,6 +471,22 @@ export default function GNCWorkbench({ sim }) {
   }, [ai])
   const busHz = api.graph.topic(TOPICS.ODOM)?.rate() ?? 0
   const ejected = snapshot?.phase === PHASE.EJECTED && decision?.status === 'EJECTED'
+  let outcome = null
+  if (snapshot?.phase === PHASE.SECURED && decision?.status === 'SECURED') {
+    outcome = {
+      title: 'TARGET SECURED · NET CLOSED',
+      detail: `peak |ωz| ${fmt(decision.peakWz)} ≤ ${fmt(decision.limit, 1)} rad/s · restraint holds · press R to reset`,
+      className: 'border-emerald-500/50 bg-emerald-950/85 text-emerald-100',
+      dot: 'bg-emerald-400',
+    }
+  } else if (snapshot?.phase === PHASE.EJECTED && decision?.status === 'MISS') {
+    outcome = {
+      title: 'CAPTURE MISSED · NO CONTACT',
+      detail: `${decision.reason} · press R to reset`,
+      className: 'border-amber-500/50 bg-amber-950/85 text-amber-100',
+      dot: 'bg-amber-400',
+    }
+  }
   let aiTone = 'off'
   if (ai.enabled) {
     if (!ai.prediction) aiTone = 'warn'
@@ -496,7 +516,7 @@ export default function GNCWorkbench({ sim }) {
               ? 'h-full min-h-0 flex-1'
               : sheetLifted
                 ? 'h-[12dvh] min-h-[72px] max-h-[96px]'
-                : 'h-[42dvh] min-h-[240px]',
+                : 'h-[42dvh] min-h-[240px] short:min-h-[120px]',
           )}
         >
           <Canvas3D
@@ -517,7 +537,7 @@ export default function GNCWorkbench({ sim }) {
           )}
 
           <div className="pointer-events-none absolute inset-0 z-10">
-            <div className="absolute left-2 right-2 top-2 flex items-start justify-between gap-2 lg:left-3 lg:right-auto lg:top-3">
+            <div className="absolute left-2 right-2 top-2 flex items-start justify-between gap-2 lg:left-3 lg:right-3 lg:top-3">
               <div className="scroll-thin pointer-events-auto flex min-w-0 items-center gap-2 overflow-x-auto">
                 <Segmented options={VIEW_OPTIONS} value={view} onChange={setView} className="shrink-0" />
                 <Segmented options={LAYER_OPTIONS} value={activeLayers} onChange={toggleLayer} className="hidden shrink-0 md:flex" />
@@ -532,7 +552,7 @@ export default function GNCWorkbench({ sim }) {
             </div>
             <div
               className={cx(
-                'absolute left-2 top-11 transition-all duration-300 lg:left-auto lg:right-3 lg:top-3',
+                'absolute left-2 top-11 transition-all duration-300 lg:left-3 lg:top-12 min-[1400px]:left-auto min-[1400px]:right-3 min-[1400px]:top-3',
                 tourHighlight === 'step2' && 'ring-2 ring-cyan-400 shadow-[0_0_20px_rgba(34,211,238,0.5)] animate-pulse',
               )}
             >
@@ -540,7 +560,7 @@ export default function GNCWorkbench({ sim }) {
             </div>
 
             {ejected && (
-              <div className="absolute inset-x-2 bottom-2 border border-red-500/60 bg-red-950/90 px-3 py-2 shadow-[0_0_40px_rgba(239,68,68,0.25)] backdrop-blur-sm lg:inset-x-auto lg:bottom-auto lg:left-1/2 lg:top-14 lg:-translate-x-1/2 lg:px-4">
+              <div className="absolute inset-x-2 bottom-2 border border-red-500/60 bg-red-950/90 px-3 py-2 shadow-[0_0_40px_rgba(239,68,68,0.25)] backdrop-blur-sm lg:inset-x-3 lg:bottom-12 lg:mx-auto lg:w-fit lg:px-4">
                 <div className="num flex items-start gap-2.5 text-[10.5px] leading-snug tracking-[0.04em] text-red-100 lg:items-center lg:text-[12px] lg:tracking-[0.06em]">
                   <span className="mt-1 h-2 w-2 shrink-0 animate-blink rounded-[1px] bg-red-500 lg:mt-0" />
                   CRITICAL INSTABILITY: Z-SPIN &gt; 3.0 RAD/S (TWIST-OUT EJECTION)
@@ -551,8 +571,26 @@ export default function GNCWorkbench({ sim }) {
               </div>
             )}
 
+            {outcome && (
+              <div
+                role="status"
+                className={cx(
+                  'absolute inset-x-2 bottom-2 border px-3 py-2 backdrop-blur-sm lg:inset-x-3 lg:bottom-12 lg:mx-auto lg:w-fit lg:px-4',
+                  outcome.className,
+                )}
+              >
+                <div className="num flex items-center gap-2.5 text-[10.5px] tracking-[0.04em] lg:text-[12px] lg:tracking-[0.06em]">
+                  <span className={cx('h-2 w-2 shrink-0 rounded-[1px]', outcome.dot)} />
+                  {outcome.title}
+                </div>
+                <div className="num mt-0.5 hidden pl-[18px] text-[10.5px] opacity-80 sm:block">{outcome.detail}</div>
+              </div>
+            )}
+
             <div className="num absolute bottom-3 right-3 hidden items-center gap-1.5 text-[10.5px] text-slate-500 lg:flex">
-              <Kbd>L</Kbd> launch <Kbd>R</Kbd> reset <Kbd>Space</Kbd> pause <Kbd>V</Kbd> view
+              <span className="hidden items-center gap-1.5 xl:flex">
+                <Kbd>L</Kbd> launch <Kbd>R</Kbd> reset <Kbd>Space</Kbd> pause <Kbd>V</Kbd> view
+              </span>
               <button
                 type="button"
                 onClick={() => setCliOpen((o) => !o)}
@@ -570,6 +608,7 @@ export default function GNCWorkbench({ sim }) {
         {!panelsCollapsed && (
           <MobileActionBar
             snapshot={snapshot}
+            decision={decision}
             api={api}
             onTogglePanels={() => setPanelsCollapsed(true)}
             aiEnabled={ai.enabled}
@@ -668,7 +707,7 @@ export default function GNCWorkbench({ sim }) {
             onClick={() => setMobileTab(t.id)}
             aria-current={mobileTab === t.id ? 'page' : undefined}
             className={cx(
-              'relative h-12 flex-1 text-[12.5px] font-medium tracking-[0.02em] transition-colors',
+              'relative h-12 flex-1 short:h-10 text-[12.5px] font-medium tracking-[0.02em] transition-colors',
               mobileTab === t.id ? 'text-slate-100' : 'text-slate-500 hover:text-slate-300',
             )}
           >
@@ -679,7 +718,7 @@ export default function GNCWorkbench({ sim }) {
         <button
           type="button"
           onClick={() => setPanelsCollapsed(true)}
-          className="flex h-12 w-14 shrink-0 items-center justify-center border-l border-ink-800 text-slate-400 transition-colors hover:text-cyan-300 active:scale-95"
+          className="flex h-12 w-14 shrink-0 short:h-10 items-center justify-center border-l border-ink-800 text-slate-400 transition-colors hover:text-cyan-300 active:scale-95"
           title="Full 3D view (collapse panels)"
           aria-label="Collapse panels for full 3D view"
         >

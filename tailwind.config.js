@@ -19,6 +19,10 @@ export default {
           500: '#3b4756',
         },
       },
+      screens: {
+        // Phones held sideways: too short for the stacked header + 3D view + sheet
+        short: { raw: '(max-height: 500px) and (orientation: landscape)' },
+      },
       keyframes: {
         blink: {
           '0%, 100%': { opacity: '1' },
