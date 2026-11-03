@@ -1,3 +1,4 @@
+import { BUILD, buildLabel } from '../build.js'
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { CAPTURE, UI_PRESETS as PRESETS, STRAIN_BANDS } from '../physics/constants.js'
 import { predictOutcome } from '../physics/rigidBody.js'
@@ -241,6 +242,14 @@ function TopBar({ snapshot, commanded, bridge, busHz, onTakeTour, aiEnabled, onT
           <div className="num truncate text-[10.5px] text-slate-500 short:hidden">
             <span className="sm:hidden">Debris capture digital twin · GNC v3</span>
             <span className="hidden sm:inline">GNC workbench v3 · 12U CubeSat · Kevlar 49 net · LEO</span>
+            <span className="text-slate-700"> · </span>
+            <a href="/methods" className="text-slate-400 underline-offset-2 hover:text-slate-100 hover:underline" title="Model, verification, results, limitations, reproduction">
+              Methods
+            </a>
+            <span className="hidden text-slate-600 md:inline" title={`Build ${buildLabel()}${BUILD.date ? ` (${BUILD.date})` : ''}`}>
+              {' '}
+              · {buildLabel()}
+            </span>
           </div>
         </div>
       </div>

@@ -1,8 +1,29 @@
-import { useEffect, useMemo, useRef } from 'react'
-import GNCWorkbench from './components/GNCWorkbench.jsx'
+import { Suspense, lazy, useEffect, useMemo, useRef } from 'react'
 import { useSimulation } from './hooks/useSimulation.js'
 
+// Both routes are lazy so that /methods never downloads three.js or the physics worker.
+const GNCWorkbench = lazy(() => import('./components/GNCWorkbench.jsx'))
+const MethodsPage = lazy(() => import('./components/MethodsPage.jsx'))
+
+export const ROUTES = Object.freeze({ workbench: '/', methods: '/methods' })
+
+function routeFor(pathname) {
+  return pathname.replace(/\/+$/, '') === ROUTES.methods ? 'methods' : 'workbench'
+}
+
 export default function App() {
+  const route = routeFor(window.location.pathname)
+  if (route === 'methods') {
+    return (
+      <Suspense fallback={<div className="p-6 text-[13px] text-slate-400">Loading methods…</div>}>
+        <MethodsPage />
+      </Suspense>
+    )
+  }
+  return <Workbench />
+}
+
+function Workbench() {
   const sim = useSimulation()
   const { api } = sim
   const autoStartFired = useRef(false)
@@ -58,5 +79,9 @@ export default function App() {
     [sim, wrappedApi],
   )
 
-  return <GNCWorkbench sim={wrappedSim} />
+  return (
+    <Suspense fallback={<div className="p-6 text-[13px] text-slate-400">Loading workbench…</div>}>
+      <GNCWorkbench sim={wrappedSim} />
+    </Suspense>
+  )
 }
