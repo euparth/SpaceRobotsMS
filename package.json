@@ -2,6 +2,8 @@
   "name": "space-debris-capture-sim",
   "private": true,
   "version": "1.0.0",
+  "license": "MIT",
+  "author": "Parth Sharma <euparth@gmail.com>",
   "type": "module",
   "scripts": {
     "dev": "vite",
@@ -11,7 +13,9 @@
     "check:physics": "node scripts/physics-check.mjs",
     "gen:surrogate": "node scripts/surrogate/genData.mjs",
     "train:surrogate": "node scripts/surrogate/train.mjs",
-    "check:surrogate": "node scripts/surrogate/check.mjs"
+    "check:surrogate": "node scripts/surrogate/check.mjs",
+    "test:e2e": "playwright test",
+    "test:all": "npm test && npm run build && npm run test:e2e"
   },
   "dependencies": {
     "lucide-react": "^0.460.0",

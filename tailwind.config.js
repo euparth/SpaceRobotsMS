@@ -8,6 +8,13 @@ export default {
         mono: ['"IBM Plex Mono"', 'ui-monospace', 'monospace'],
       },
       colors: {
+        // Release 1.0 accessibility: Tailwind's slate-500 (#64748b) and slate-600 (#475569) are
+        // 4.1:1 and 2.6:1 on the ink-925 background; these lifted values give ≥ 5.1:1 and ≥ 4.7:1
+        // (WCAG AA for small text) while keeping the three-step hierarchy slate-400 > 500 > 600.
+        slate: {
+          500: '#7a8aa4',
+          600: '#6e7e94',
+        },
         ink: {
           950: '#05070a',
           925: '#080b10',

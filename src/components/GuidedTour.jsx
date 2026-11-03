@@ -6,8 +6,8 @@ export const TOUR_STEPS = [
     id: 'kinematics',
     stepNumber: '1/3',
     title: '1. Target Satellite Dynamics',
-    body: '12U CubeSat (30.0 kg) tumbling under 6-DOF Euler rotational equations in Low Earth Orbit (LEO).',
-    detail: 'Analytical box moments of inertia: Ix = 0.479, Iy = 0.273, Iz = 0.464 kg·m² (Dzhanibekov intermediate-axis effect).',
+    body: '12U CubeSat (30.0 kg) tumbling torque-free: Euler rotational equations (3 rotational DOF) plus quaternion kinematics, RK4 at H = 1/3000 s.',
+    detail: 'Stored principal moments Ix = 0.479, Iy = 0.273, Iz = 0.464 kg·m² (within 3e-4 of the uniform box); z is the intermediate axis, so |ωz| can grow along the polhode.',
     actionHighlight: 'left spin sliders and target mesh',
     highlightKey: 'step1',
   },
@@ -15,8 +15,8 @@ export const TOUR_STEPS = [
     id: 'net',
     stepNumber: '2/3',
     title: '2. Kevlar 49 Space Net & Stress Shader',
-    body: '2.0m x 2.0m woven mesh (E = 120 GPa, mu = 0.20) solved via 60Hz WebWorker RK4 + custom GLSL strain shader.',
-    detail: 'Real-time GLSL fragment shader dynamically colours thread tension: Blue (<5% strain), Amber (5-15%), Crimson (>15% yield).',
+    body: '2.0 m × 2.0 m woven mesh (E = 120 GPa, μ = 0.20), tension-only XPBD lattice of 144 knots stepped at 1/3000 s in a Web Worker; state published at 60 Hz; GLSL strain shader.',
+    detail: 'Vertex shader colours each knot by strain: blue below 5 %, amber 5–15 %, crimson above 15 %.',
     actionHighlight: 'active mesh deformation and right energy telemetry graph',
     highlightKey: 'step2',
   },
@@ -24,8 +24,8 @@ export const TOUR_STEPS = [
     id: 'instability',
     stepNumber: '3/3',
     title: '3. Test Rotational Instability',
-    body: "Select 'Scenario S3 (High-Spin Z)' in the left panel to test the |wz| > 3.0 rad/s twist-out ejection threshold live!",
-    detail: 'When rotational kinetic energy overcomes net tensile restraint, conformal wrap fails and the target is ejected.',
+    body: "Select scenario S3 (High-spin Z) in the left panel to run the |ωz| > 3.0 rad/s twist-out threshold live; S4 starts at |ωz0| = 2.5 and still ejects.",
+    detail: 'Verdict = max |ωz| over the 0.25 s contact window. The Verdicts tab shows the static rule, the closed-form envelope, the PINN and the solver side by side.',
     actionHighlight: 'Scenario S3 button in control panel',
     highlightKey: 'step3',
   },
@@ -149,20 +149,23 @@ export default function GuidedTour({
         {/* Footer controls: Prev, Next, Skip, and Step indicator dots */}
         <div className="mt-4 flex items-center justify-between border-t border-slate-800/80 pt-3">
           {/* Progress dots indicator */}
-          <div className="flex items-center gap-1.5" role="tablist" aria-label="Tour progress">
+          <div className="flex items-center gap-0.5" role="group" aria-label="Tour progress">
             {TOUR_STEPS.map((_, i) => (
               <button
                 key={i}
                 type="button"
                 onClick={() => onStepChange(i)}
-                className={cx(
-                  'h-2 rounded-full transition-all duration-300',
-                  i === currentStep
-                    ? 'w-6 bg-cyan-400 shadow-[0_0_8px_rgba(34,211,238,0.8)]'
-                    : 'w-2 bg-slate-700 hover:bg-slate-500',
-                )}
+                className="flex h-6 min-w-6 items-center justify-center px-1"
                 aria-label={`Go to step ${i + 1}`}
-              />
+                aria-current={i === currentStep ? 'step' : undefined}
+              >
+                <span
+                  className={cx(
+                    'block h-2 rounded-full transition-all duration-300',
+                    i === currentStep ? 'w-6 bg-cyan-400 shadow-[0_0_8px_rgba(34,211,238,0.8)]' : 'w-2 bg-slate-700 group-hover:bg-slate-500',
+                  )}
+                />
+              </button>
             ))}
           </div>
 

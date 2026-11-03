@@ -104,7 +104,7 @@ class RosNode {
   }
 }
 
-/** rosbridge v2 protocol link (rosbridge_suite) for streaming topics into a live ROS 2 / Gazebo graph. */
+/** rosbridge v2 protocol client (rosbridge_suite). Advertises and publishes the in-browser topics; not tested against a live rosbridge_server in release 1.0 (NOT MEASURED). */
 class RosbridgeLink {
   constructor(graph, url) {
     this.graph = graph

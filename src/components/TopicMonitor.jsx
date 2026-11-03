@@ -128,7 +128,7 @@ export default function TopicMonitor({ graph }) {
           )}
         </div>
         <p className="mt-1.5 text-[10.5px] leading-snug text-slate-500">
-          Streams every topic over rosbridge v2 at ≤20 Hz into a live ROS 2 / Gazebo graph
+          rosbridge v2 client (rosbridge_suite protocol), ≤20 Hz per topic. Not exercised against a live rosbridge_server in this release: NOT MEASURED
           {bridge.sent ? ` · ${bridge.sent.toLocaleString()} msgs sent` : ''}.
         </p>
       </div>

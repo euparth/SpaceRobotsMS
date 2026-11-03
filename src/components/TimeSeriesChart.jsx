@@ -253,7 +253,12 @@ function TimeSeriesChart({ history, series, thresholds = [], windowSec = 6, symm
 
   return (
     <div ref={wrapRef} className="absolute inset-0">
-      <canvas ref={canvasRef} className="block" />
+      <canvas
+        ref={canvasRef}
+        className="block"
+        role="img"
+        aria-label={`Time series of ${series.map((s) => s.label ?? s.key).join(', ')} over the last ${windowSec} s`}
+      />
     </div>
   )
 }

@@ -107,7 +107,7 @@ export function buildDataset(rows, { decision, eta, surrogate = null }) {
     schema: DATASET_SCHEMA,
     generated_at: new Date().toISOString(),
     source: {
-      project: "Parth's MS Thesis — Space Debris Capture Digital Twin",
+      project: 'Space Debris Capture Simulator — tumbling 12U CubeSat, Kevlar 49 net',
       engine: 'GNC Workbench v3',
       integrator: 'RK4 · Euler rigid-body equations + quaternion kinematics',
       net_solver: 'XPBD tension-only cable lattice · OBB contact · Coulomb friction',

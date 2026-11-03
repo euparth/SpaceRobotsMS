@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { PRIORS, PRIOR_DESCRIPTION } from '../physics/priors.js'
-import { rowsToCsv } from '../physics/monteCarlo.js'
+import { rowsToCsv } from '../physics/monteCarloStats.js'
 import { MC_DEFAULT, MC_MAX_N, MC_MIN_N, useMonteCarlo } from '../hooks/useMonteCarlo.js'
 import { Button, Label, Section, cx } from './ui.jsx'
 
@@ -13,13 +13,13 @@ function pct(num, den) {
   return den ? `${((100 * num) / den).toFixed(2)} %` : '—'
 }
 
-function ConfusionTable({ title, c, note }) {
+function ConfusionTable({ id, title, c, note }) {
   const rows = [
     ['Predicted SECURE', c.secureSecure, c.falseSecure],
     ['Predicted EJECT', c.falseEject, c.ejectEject],
   ]
   return (
-    <div className="bg-ink-900 p-2.5">
+    <div className="bg-ink-900 p-2.5" data-confusion={id}>
       <div className="flex items-baseline justify-between">
         <Label className="text-[9.5px]">{title}</Label>
         <span className="num text-[10.5px] text-slate-400">
@@ -45,7 +45,7 @@ function ConfusionTable({ title, c, note }) {
         </tbody>
       </table>
       <div className="mt-1 text-[10.5px] text-slate-500">
-        false-secure <span className="text-red-300">{c.falseSecure}</span> ({pct(c.falseSecure, c.predictedSecure)} of predicted SECURE)
+        predicted SECURE {c.predictedSecure} · false-secure <span className="text-red-300">{c.falseSecure}</span> ({pct(c.falseSecure, c.predictedSecure)} of predicted SECURE)
         {' · '}false-eject <span className="text-amber-300">{c.falseEject}</span>
         {note && <span> · {note}</span>}
       </div>
@@ -194,9 +194,9 @@ export default function MonteCarloPanel() {
               label SECURE {s.labelSecure} · label EJECT {s.n - s.labelSecure} · {result.config.chunks} chunks of ⌈N/8⌉ · {result.config.concurrency} workers
             </div>
             <div className="grid grid-cols-1 gap-px bg-ink-700/60 px-3 pb-3">
-              <ConfusionTable title="Static rule |ωz0| ≤ 3.0" c={s.rule} />
-              <ConfusionTable title="Envelope ωz,max ≤ 3.0 (closed form)" c={s.envelope} note={`physics-limited ${s.physicsLimited} · window-limited ${s.windowLimited}`} />
-              <ConfusionTable title="PINN fireNowSecure" c={s.pinn} />
+              <ConfusionTable id="rule" title="Static rule |ωz0| ≤ 3.0" c={s.rule} />
+              <ConfusionTable id="envelope" title="Envelope ωz,max ≤ 3.0 (closed form)" c={s.envelope} note={`physics-limited ${s.physicsLimited} · window-limited ${s.windowLimited}`} />
+              <ConfusionTable id="pinn" title="PINN fireNowSecure" c={s.pinn} />
             </div>
             <div className="px-3 pb-3 text-[10.5px] leading-snug text-slate-500">
               physics-limited = rule SECURE and closed-form ωz,max &gt; 3 (no fire delay can help); window-limited = closed-form ωz,max &gt; 3 but

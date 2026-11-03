@@ -6,7 +6,7 @@ import { compactMessage } from './messageFormat.js'
 export const COMMANDS = Object.freeze([
   { name: 'help', usage: 'help', summary: 'List commands' },
   { name: 'set_spin', usage: 'set_spin [--x n] [--y n] [--z n]', summary: 'Command initial body rates ω₀ [rad/s, 0–5]' },
-  { name: 'preset', usage: 'preset <S1|S2|S3|S4|S5>', summary: 'Load a thesis scenario' },
+  { name: 'preset', usage: 'preset <S1|S2|S3|S4|S5>', summary: 'Load scenario S1–S5' },
   { name: 'launch_net', usage: 'launch_net', summary: 'Fire the Kevlar 49 net at 10.0 m/s' },
   { name: 'reset', usage: 'reset', summary: 'Re-initialise target and stow net' },
   { name: 'pause', usage: 'pause', summary: 'Freeze the physics worker' },
@@ -16,7 +16,7 @@ export const COMMANDS = Object.freeze([
   { name: 'status', usage: 'status', summary: 'Current GNC state vector' },
   { name: 'set_param', usage: 'set_param --eta <1e-4–0.1> | --coupling <one-way|two-way> | --drawstring <on|off>', summary: 'Mesh efficiency η, net→body coupling, drawstring servo' },
   { name: 'export_telemetry', usage: 'export_telemetry [--format json|csv]', summary: 'Download the telemetry dataset' },
-  { name: 'ros2', usage: 'ros2 topic list|echo|hz|info · node list · bridge', summary: 'ROS 2 graph introspection' },
+  { name: 'ros2', usage: 'ros2 topic list|echo|hz|info · node list · bridge', summary: 'In-browser ROS 2-style graph; bridge = rosbridge v2 client (NOT MEASURED against a live server)' },
   { name: 'show_topics', usage: 'show_topics', summary: 'Topic table: type, rate, message count' },
   { name: 'view', usage: 'view <iso|front|side|top|track>', summary: 'Viewport camera preset' },
   { name: 'ai', usage: 'ai status | fire | toggle', summary: 'PINN surrogate status, arm auto-fire, or toggle' },

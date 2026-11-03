@@ -1,5 +1,5 @@
 import { BUILD, buildLabel } from '../build.js'
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { lazy, Suspense, useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { CAPTURE, UI_PRESETS as PRESETS, STRAIN_BANDS } from '../physics/constants.js'
 import { predictOutcome } from '../physics/rigidBody.js'
 import { PHASE, PHASE_LABEL } from '../physics/stateLayout.js'
@@ -7,16 +7,19 @@ import { useSurrogate } from '../hooks/useSurrogate.js'
 import { executeCommand } from '../services/cliCommands.js'
 import { TOPICS } from '../services/rosTelemetryNode.js'
 import { STRESS_PALETTE } from '../shaders/stressShader.js'
-import Canvas3D, { VIEW_PRESETS } from './Canvas3D.jsx'
+import { VIEW_PRESETS } from './viewPresets.js'
 import CliTerminal from './CliTerminal.jsx'
 import Controls from './Controls.jsx'
 import GuidedTour, { TOUR_STEPS, shouldShowTourOnFirstVisit } from './GuidedTour.jsx'
 import InertiaTensor from './InertiaTensor.jsx'
 import MobilePredict from './MobilePredict.jsx'
-import PolhodeView from './PolhodeView.jsx'
 import TelemetryHUD from './TelemetryHUD.jsx'
 import TimeSeriesChart from './TimeSeriesChart.jsx'
 import { Button, Kbd, Label, Led, Segmented, cx, fmt } from './ui.jsx'
+
+// three.js views are lazy so the panels paint before the 487 kB three chunk is parsed (release 1.0, 6b)
+const Canvas3D = lazy(() => import('./Canvas3D.jsx'))
+const PolhodeView = lazy(() => import('./PolhodeView.jsx'))
 
 const CANVAS_VIEW_IDS = Object.keys(VIEW_PRESETS)
 const VIEW_IDS = [...CANVAS_VIEW_IDS, 'polhode']
@@ -65,7 +68,7 @@ const DYNAMICS_PLOTS = Object.freeze({
 const DYNAMICS_OPTIONS = Object.keys(DYNAMICS_PLOTS).map((id) => ({ id, label: DYNAMICS_PLOTS[id].label }))
 
 const BOOT_LINES = [
-  { kind: 'dim', text: "Parth's MS Thesis · GNC digital twin · /cli" },
+  { kind: 'dim', text: 'Space Debris Capture Simulator · /cli' },
   { kind: 'dim', text: "type 'help' for commands — e.g. set_spin --z 4.2 · launch_net · export_telemetry --format csv" },
 ]
 
@@ -233,10 +236,10 @@ function TopBar({ snapshot, commanded, bridge, busHz, onTakeTour, aiEnabled, onT
         <Mark />
         <div className="min-w-0 leading-tight">
           <div className="truncate text-[13px] font-medium text-slate-100">
-            Parth&apos;s MS Thesis
+            Space Debris Capture Simulator
             <span className="hidden sm:inline">
               {' '}
-              <span className="text-slate-600">/</span> Space Debris Capture Digital Twin
+              <span className="text-slate-600">/</span> tumbling 12U CubeSat · Kevlar 49 net
             </span>
           </div>
           <div className="num truncate text-[10.5px] text-slate-500 short:hidden">
@@ -298,7 +301,7 @@ function TopBar({ snapshot, commanded, bridge, busHz, onTakeTour, aiEnabled, onT
           <span>Take Tour</span>
         </button>
         <Led label="GNC_ACTIVE" short="GNC" tone={gncTone} title="Physics worker integrating at publish rate" />
-        <Led label="BUS_CONNECTED" short="BUS" tone={busTone} title={`ROS 2 bus · odom ${busHz.toFixed(1)} Hz`} />
+        <Led label="BUS_CONNECTED" short="BUS" tone={busTone} title={`in-browser ROS 2-style topic bus · odom ${busHz.toFixed(1)} Hz`} />
         <Led label="ROSBRIDGE" short="BRIDGE" tone={bridgeTone} title={bridge.url ?? 'rosbridge offline'} />
         <Led label="CONTACT" short="CONTACT" tone={contactTone} title={`Net knots in contact with target · ${snapshot?.contacts ?? 0}`} />
         <Led label="EJECT_ALERT" short="EJECT" tone={ejectTone} title="Twist-out ejection / instability forecast" />
@@ -560,17 +563,19 @@ export default function GNCWorkbench({ sim }) {
                 : 'h-[42dvh] min-h-[240px] short:min-h-[120px]',
           )}
         >
-          {view === 'polhode' ? (
-            <PolhodeView stateRef={api.stateRef} commanded={commanded} verdicts={verdicts} />
-          ) : (
-            <Canvas3D
-              stateRef={api.stateRef}
-              view={view}
-              layers={layers}
-              tourHighlight={tourHighlight}
-              aiRef={ai.predictionRef}
-            />
-          )}
+          <Suspense fallback={<div className="absolute inset-0 bg-ink-950" aria-busy="true" aria-label="Loading 3D view" />}>
+            {view === 'polhode' ? (
+              <PolhodeView stateRef={api.stateRef} commanded={commanded} verdicts={verdicts} />
+            ) : (
+              <Canvas3D
+                stateRef={api.stateRef}
+                view={view}
+                layers={layers}
+                tourHighlight={tourHighlight}
+                aiRef={ai.predictionRef}
+              />
+            )}
+          </Suspense>
           {/* Tap the peek of the viewport to drop the sheet and show the 3D view again */}
           {sheetLifted && !panelsCollapsed && (
             <button
@@ -689,7 +694,7 @@ export default function GNCWorkbench({ sim }) {
               <TimeSeriesChart history={api.history} series={ENERGY_SERIES} />
             </ChartCard>
             <ChartCard
-              tabs={<Segmented options={DYNAMICS_OPTIONS} value={plot} onChange={setPlot} className="h-6" />}
+              tabs={<Segmented options={DYNAMICS_OPTIONS} value={plot} onChange={setPlot} className="h-6" ariaLabel="Dynamics plot" />}
               hint={DYNAMICS_PLOTS[plot].hint}
               legend={DYNAMICS_PLOTS[plot].series}
             >

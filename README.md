@@ -1,8 +1,8 @@
-# Parth's MS Thesis — Space Debris Capture Digital Twin (GNC Workbench v3)
+# Space Debris Capture Simulator (GNC Workbench v3)
 
 Live: https://space-debris-sim.vercel.app
 
-A browser-based GNC (guidance, navigation and control) workbench that simulates a non-cooperative, tumbling **12U CubeSat** in LEO being captured by a deployable **Kevlar 49 net**. Physics runs in a WebWorker, telemetry is published on a ROS 2-style topic bus, and the net is rendered with a custom GLSL strain shader.
+A browser-based GNC (guidance, navigation and control) workbench that simulates a non-cooperative, tumbling **12U CubeSat** in LEO being captured by a deployable **Kevlar 49 net**. Physics runs in a Web Worker, telemetry is published on an in-browser ROS 2-style topic bus (same topic names and message types; no ROS 2 process is involved), and the net is rendered with a GLSL strain shader.
 
 ## Physical ground truth
 
@@ -16,32 +16,84 @@ A browser-based GNC (guidance, navigation and control) workbench that simulates 
 
 ## Architecture
 
+Data flow between the five parts (one browser tab, no server):
+
+```
+                 commands (set_param, launch, preset, coupling …)
+  ┌──────────────────────────────────────────────────────────────────┐
+  │                                                                  ▼
+┌─┴──────────────┐  Float32Array state, 60 Hz, transferable  ┌──────────────────────┐
+│  UI (React)    │◄──────────────────────────────────────────│  physicsWorker.js    │
+│  GNCWorkbench  │                                           │  RK4 torque-free     │
+│  Canvas3D      │                                           │  Euler + quaternion  │
+│  Controls/HUD  │                                           │  capture state       │
+│  Polhode / MC  │                                           │  machine, verdicts   │
+│  MethodsPage   │                                           └──────────┬───────────┘
+└─┬───────┬──────┘                                                      │ per substep
+  │       │ ω₀ at 10 Hz (main thread, weights loaded lazily)            ▼
+  │       ▼                                                   ┌──────────────────────┐
+  │  ┌──────────────────────┐                                 │  netSolver.js        │
+  │  │  surrogate/          │   same weights.json, same       │  XPBD tension-only   │
+  │  │  inference.js (MLP)  │◄── runSurrogateInference ───────│  lattice, OBB        │
+  │  └──────────────────────┘   in worker (verdict "PINN")    │  contact, friction,  │
+  │                                                           │  one-/two-way        │
+  │  telemetry snapshots                                      │  reaction            │
+  ▼                                                           └──────────────────────┘
+┌────────────────────────────────┐        ┌───────────────────────────────────────────┐
+│  rosTelemetryNode.js           │        │  monteCarloWorker.js × min(8, cores)      │
+│  in-browser topic bus          │        │  priors.js → captureLabel.js → envelope   │
+│  (/debris/*, QoS, rates),      │        │  → inference.js; fixed 8-way chunk split  │
+│  telemetryHistory ring buffer, │        │  identical to scripts/surrogate/genData   │
+│  telemetryExporter JSON/CSV    │        └───────────────────────────────────────────┘
+└────────────────────────────────┘
+```
+
+The physics modules under `src/physics/` are pure and framework-free; the worker, the Monte Carlo
+workers, the Node validation scripts and the tests import the same files, so a number shown in the
+UI and a number in `reports/` come from one code path.
+
 ```
 src/
-  physics/            pure, framework-free model code (shared by worker and UI)
-    constants.js      thesis constants, presets, solver settings
-    rigidBody.js      Euler equations, RK4, quaternion kinematics, polhode envelope
+  physics/            pure model code (shared by workers, UI, scripts and tests)
+    constants.js      body, net, capture and solver constants; presets S1–S5
+    rigidBody.js      Euler equations, RK4, quaternion kinematics
+    envelope.js       closed-form max |ωz| on the polhode (LP branches a=0 / b=0)
+    polhode.js        sampled polhode curve for the 3D/2D view
+    captureLabel.js   peakWzInContactWindow — the dataset label path
+    priors.js         mulberry32, spin priors, planChunks (8-way dataset split)
+    monteCarlo.js     per-row verdicts (rule / envelope / PINN vs label)
+    monteCarloStats.js confusion tables, histogram, summary, CSV
+    momentum.js       body + net momentum budget (two-way coupling check)
     netSolver.js      XPBD tension-only cable lattice, OBB contact, Coulomb friction
     netTopology.js    12×12 lattice, threads, triangles, masses
     stateLayout.js    Float32Array state schema shared by worker and main thread
   workers/
-    physicsWorker.js  60 Hz loop, adaptive substeps, capture state machine
+    physicsWorker.js    60 Hz loop, adaptive substeps, capture state machine
+    monteCarloWorker.js one chunk of the in-browser Monte Carlo
   services/
-    rosTelemetryNode.js  ROS 2 pub/sub graph, QoS, rate estimation, rosbridge v2 link
+    rosTelemetryNode.js  in-browser ROS 2-style pub/sub graph, QoS, rate estimation; rosbridge v2 client (NOT MEASURED)
     telemetryHistory.js  ring buffer feeding the canvas plots
     telemetryExporter.js JSON / CSV dataset export
     cliCommands.js       /cli command interpreter
-    aiSurrogateEngine.js PINN / MLP forward pass wrapper (latency measured in-browser; speedup baseline from worker benchmark, 17 ms fallback until it completes)
+    aiSurrogateEngine.js MLP forward-pass wrapper for the UI thread (weights loaded on demand)
   surrogate/
     mlp.js / inference.js / weights.json / metrics.json   browser Float32 surrogate
+  methods/
+    measured.js / limitations.js   values quoted on /methods, each with its source report
   shaders/
     stressShader.js   GLSL strain-to-colour material (lines, knots, membrane)
   hooks/
     useSimulation.js  worker lifecycle, telemetry fan-out, command API
-    useSurrogate.js   ~10 Hz PINN inference + auto-fire arming
-  components/         workbench UI (Canvas3D, Controls, TelemetryHUD, TopicMonitor,
-                      InertiaTensor, TimeSeriesChart, CliTerminal, GNCWorkbench)
-  scripts/surrogate/  offline dataset gen + pure-JS Adam training + check gate
+    useSurrogate.js   ~10 Hz inference + auto-fire arming
+    useMonteCarlo.js  worker pool over planChunks
+  components/         workbench UI (Canvas3D, Controls, TelemetryHUD, VerdictsPanel, PolhodeView,
+                      MonteCarloPanel, TopicMonitor, CliTerminal, MethodsPage, GNCWorkbench)
+scripts/
+  surrogate/          dataset generation (genData.mjs), pure-JS Adam training, check gate
+  validation/         inertia, axis sweep, misclassification, timing   → reports/validation_2026-11.md
+  research/           integrator drift, priors, two-way coupling, presets → reports/research_2026-11.md
+tests/                node:test suites run by `npm test`
+e2e/                  Playwright smoke test run by `npm run test:e2e`
 ```
 
 ### PINN AI surrogate
@@ -81,7 +133,7 @@ Because Z is the intermediate axis, |ωz| can grow during a tumble. The workbenc
 
 Live-worker end states (SECURED / EJECTED, enclosure after closure) are not produced by the headless scripts and are not reported here.
 
-### ROS 2 topics
+### ROS 2-style topics
 | Topic | Type | Rate |
 | --- | --- | --- |
 | `/space_debris/cube_sat/odom` | `nav_msgs/msg/Odometry` | 60 Hz |
@@ -90,20 +142,20 @@ Live-worker end states (SECURED / EJECTED, enclosure after closure) are not prod
 | `/space_debris/gnc/angular_momentum` | `geometry_msgs/msg/Vector3Stamped` | 60 Hz |
 | `/space_debris/ai/surrogate` | `std_msgs/msg/String` (JSON payload) | on change (~10 Hz) |
 
-The **ROS 2** tab shows live JSON, rates and QoS. Optional: connect to a real ROS 2 / Gazebo graph through `rosbridge_server` (default `ws://localhost:9090`).
+The **ROS 2** tab shows live JSON, rates and QoS of the in-browser graph. A rosbridge v2 client (`ros2 bridge connect ws://localhost:9090`, or the Connect button on the tab) advertises and publishes these topics with the rosbridge_suite protocol. **NOT MEASURED**: it has not been run against a live `rosbridge_server` in this release, so interoperability with a real ROS 2 graph is unverified. There is no Gazebo integration.
 
 ### Stress shader
 Per-knot strain drives the colour in the vertex shader: blue `#0284c7` below 5%, amber `#f59e0b` from 5–15%, crimson `#dc2626` (pulsing) above 15%.
 
 ## Using the workbench
 
-- **Left panel**: body rates ω₀, scenarios S1–S4, time scale, net spec, Launch / Reset, Export JSON or CSV.
+- **Left panel**: body rates ω₀, scenarios S1–S5, time scale, net→body coupling (one-way default / two-way experimental, drawstring on/off, ΔP and ΔL readouts), net spec, Launch / Reset, Export JSON or CSV.
 - **Viewport**: ISO / FRONT / SIDE / TOP / TRACK cameras; toggles for H·ω vectors (with herpolhode trace), body axes, grid, membrane.
 - **Bottom dock**: live inertia tensor H = I·ω, energy plot (T, E_absorbed, J_net), and a switchable nutation / body-rate / quaternion plot.
-- **Right panel**: AI, State, ROS 2, Model, Log tabs.
+- **Right panel**: Verdicts, PINN, MC (Monte Carlo), State, ROS 2, Model, Log tabs.
 - **Top bar**: AI PREDICTOR ON/OFF; LEDs GNC_ACTIVE, BUS_CONNECTED, ROSBRIDGE, CONTACT, EJECT_ALERT, AI_SURROGATE.
 
-Keyboard: `L` launch · `R` reset · `Space` pause · `1–4` scenarios · `V` cycle view · `/` open CLI.
+Keyboard: `L` launch · `R` reset · `Space` pause · `1–5` scenarios · `V` cycle view (ISO / FRONT / SIDE / TOP / TRACK / POLHODE) · `/` open CLI.
 
 ### CLI
 ```
@@ -127,6 +179,8 @@ The in-app page [`/methods`](https://space-debris-sim.vercel.app/methods) (sourc
 - **Limitations**: the "Status and limitations" list below, plus the XPBD angular-momentum residual (≈1 % of |L|) and the 8-worker seed dependence of the dataset.
 - **Provenance**: built October–November 2026. The author's 2023 M.Sc. thesis (TH OWL) reviewed Shin et al.'s ABAQUS net-capture study; this simulator is an independent re-implementation of that scenario. The git commit and tag are injected at build time (`vite.config.js`) and shown in the header and on `/methods`.
 
+See `LICENSE` (MIT — confirm with Parth Sharma), `CITATION.cff`, `CHANGELOG.md`, and `CONTRIBUTING.md`.
+
 ## Exported dataset
 JSON (`ps-msc.debris-capture.telemetry/v3`) or CSV with timestamps, quaternion, body rates, angular momentum, energies, nutation, position/velocity, enclosure, strain and capture status, plus AI prediction columns (`ai_*`) and the full model metadata / capture outcome.
 
@@ -145,7 +199,8 @@ JSON (`ps-msc.debris-capture.telemetry/v3`) or CSV with timestamps, quaternion, 
 npm install
 npm run dev              # http://localhost:5173
 npm run build
-npm test                 # node:test — integrator, closed-form bound, coupling (tests/)
+npm test                 # node:test — integrator, closed-form bound, polhode, Monte Carlo parity, coupling, methods (tests/)
+npm run test:e2e         # Playwright smoke test against `vite preview` (needs `npx playwright install chromium`)
 npm run check:physics    # headless RK4 / polhode / net sanity check
 npm run check:surrogate  # latency < 2 ms + accuracy beats naive |ωz|>3 rule
 # offline retrain (optional):

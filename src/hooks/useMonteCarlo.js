@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { planChunks, DATASET_CHUNKS } from '../physics/priors.js'
-import { summarize } from '../physics/monteCarlo.js'
+import { summarize } from '../physics/monteCarloStats.js'
 
 export const MC_MIN_N = 100
 export const MC_MAX_N = 2000

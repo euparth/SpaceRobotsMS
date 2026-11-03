@@ -4,6 +4,7 @@ import {
   clearSurrogateCache,
   getBenchmarkBaselines,
   getSurrogateMetrics,
+  loadSurrogate,
   runPINNInference,
   setBenchmarkBaselines,
 } from '../services/aiSurrogateEngine.js'
@@ -13,7 +14,7 @@ const INFER_MS = 1000 / INFER_HZ
 
 /**
  * Runs PINN inference ~10 Hz off the render path, using the live snapshot ω.
- * Default ON per thesis brief.
+ * Default ON.
  */
 export function useSurrogate(simApi, snapshot) {
   const [enabled, setEnabled] = useState(true)
@@ -46,6 +47,11 @@ export function useSurrogate(simApi, snapshot) {
     })
   }, [simApi])
 
+  // Load the weights off the first paint; inference stays null until they arrive
+  useEffect(() => {
+    loadSurrogate()
+  }, [])
+
   // Periodic inference from live snapshot
   useEffect(() => {
     const id = setInterval(() => {
@@ -58,6 +64,7 @@ export function useSurrogate(simApi, snapshot) {
         snap.phase === PHASE.IDLE ? simApi.getCommanded?.() ?? snap.w : snap.w
       const [wx, wy, wz] = w
       const result = runPINNInference(wx, wy, wz, 10)
+      if (!result) return
       const base = getBenchmarkBaselines()
       result.coupledRolloutMs = base.coupledMs
       result.rigidRolloutMs = base.rigidMs

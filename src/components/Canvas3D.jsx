@@ -1,3 +1,5 @@
+import { reducedMotion } from '../motion.js'
+import { VIEW_PRESETS } from './viewPresets.js'
 import { memo, useEffect, useRef } from 'react'
 import * as THREE from 'three'
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js'
@@ -8,13 +10,25 @@ import { F, NODE_POSITION_OFFSET, NODE_STRAIN_OFFSET } from '../physics/stateLay
 import { createStressMaterial } from '../shaders/stressShader.js'
 import { cx } from './ui.jsx'
 
-export const VIEW_PRESETS = Object.freeze({
-  iso: { label: 'ISO', position: [3.9, 1.55, 4.3], target: [0, 0, 1.45] },
-  front: { label: 'FRONT', position: [0, 0.18, 6.4], target: [0, 0, 0.6] },
-  side: { label: 'SIDE', position: [5.6, 0.35, 1.3], target: [0, 0, 1.3] },
-  top: { label: 'TOP', position: [0, 6.8, 1.9], target: [0, 0, 1.3] },
-  track: { label: 'TRACK', offset: [1.1, 0.65, 1.55] },
-})
+export { VIEW_PRESETS } from './viewPresets.js'
+
+/**
+ * Runs `build` (which returns a dispose function) one task after mount, so the panels and
+ * dialogs paint before the WebGL context, PMREM environment and geometry are created
+ * (release 1.0, 6b). The physics worker does not depend on this and is already running.
+ */
+function deferred(build) {
+  let dispose = null
+  let cancelled = false
+  const schedule = window.requestIdleCallback ? (cb) => window.requestIdleCallback(cb, { timeout: 250 }) : (cb) => setTimeout(cb, 0)
+  schedule(() => {
+    if (!cancelled) dispose = build()
+  })
+  return () => {
+    cancelled = true
+    if (dispose) dispose()
+  }
+}
 
 const TRAIL_LENGTH = 360
 const GIZMO_SIZE = 84
@@ -240,11 +254,11 @@ function buildEarth() {
   const group = new THREE.Group()
   const radius = 110
   const globe = new THREE.Mesh(
-    new THREE.SphereGeometry(radius, 128, 128),
+    new THREE.SphereGeometry(radius, 64, 64),
     new THREE.MeshStandardMaterial({ color: 0x061322, roughness: 1, metalness: 0, emissive: 0x01040a }),
   )
   const atmosphere = new THREE.Mesh(
-    new THREE.SphereGeometry(radius * 1.022, 128, 128),
+    new THREE.SphereGeometry(radius * 1.022, 64, 64),
     new THREE.ShaderMaterial({
       transparent: true,
       depthWrite: false,
@@ -271,7 +285,6 @@ function buildEarth() {
     }),
   )
   group.add(globe, atmosphere)
-  group.position.set(-40, -220, -160)
   return group
 }
 
@@ -395,7 +408,7 @@ function Canvas3D({ stateRef, view, layers, tourHighlight, aiRef }) {
     aiOverlayRef.current = aiRef
   }, [aiRef])
 
-  useEffect(() => {
+  useEffect(() => deferred(() => {
     const host = hostRef.current
     const renderer = new THREE.WebGLRenderer({ antialias: true, powerPreference: 'high-performance' })
     renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2))
@@ -406,10 +419,32 @@ function Canvas3D({ stateRef, view, layers, tourHighlight, aiRef }) {
     host.appendChild(renderer.domElement)
 
     const scene = new THREE.Scene()
-    const pmrem = new THREE.PMREMGenerator(renderer)
-    const environment = pmrem.fromScene(new RoomEnvironment(), 0.04).texture
-    scene.environment = environment
-    scene.environmentIntensity = 0.16
+    // Backdrop (stars, Earth) and the PMREM environment are added in later idle tasks so the
+    // first frame with the target and net appears sooner and no single task exceeds ~50 ms.
+    let pmrem = null
+    let environment = null
+    const earth = new THREE.Group()
+    earth.position.set(-40, -220, -160)
+    scene.add(earth)
+    const laterTasks = []
+    const later = (fn) => {
+      const id = window.requestIdleCallback ? window.requestIdleCallback(fn, { timeout: 400 }) : setTimeout(fn, 16)
+      laterTasks.push(id)
+    }
+    const cancelLater = () => {
+      for (const id of laterTasks) (window.cancelIdleCallback ?? clearTimeout)(id)
+    }
+    later(() => scene.add(buildStars()))
+    later(() => {
+      const built = buildEarth()
+      earth.add(...built.children)
+    })
+    later(() => {
+      pmrem = new THREE.PMREMGenerator(renderer)
+      environment = pmrem.fromScene(new RoomEnvironment(), 0.04).texture
+      scene.environment = environment
+      scene.environmentIntensity = 0.16
+    })
 
     const camera = new THREE.PerspectiveCamera(38, 1, 0.01, 600)
     camera.position.fromArray(VIEW_PRESETS.iso.position)
@@ -431,9 +466,6 @@ function Canvas3D({ stateRef, view, layers, tourHighlight, aiRef }) {
     rim.position.set(-4, 2, -5)
     scene.add(rim)
 
-    scene.add(buildStars())
-    const earth = buildEarth()
-    scene.add(earth)
     const reference = buildReference()
     scene.add(reference)
     scene.add(buildDeployer())
@@ -597,7 +629,7 @@ function Canvas3D({ stateRef, view, layers, tourHighlight, aiRef }) {
         contactRing.position.copy(sat.position).add(face)
         contactRing.quaternion.copy(sat.quaternion)
         contactRing.rotateX(Math.PI / 2)
-        const pulse = 0.55 + 0.35 * Math.sin(performance.now() * 0.006)
+        const pulse = reducedMotion() ? 0.7 : 0.55 + 0.35 * Math.sin(performance.now() * 0.006)
         ringMat.opacity = pulse
         neuralMat.opacity = 0.35 + 0.25 * pulse
         neuralLine.visible = true
@@ -694,7 +726,8 @@ function Canvas3D({ stateRef, view, layers, tourHighlight, aiRef }) {
       frame++
       const buf = stateRef.current
       const range = buf ? applyState(buf) : NaN
-      for (const m of net.materials) m.uniforms.uTime.value = now / 1000
+      // uTime drives only the yield pulse in the strain shader; freezing it keeps the colour scale unchanged
+      if (!reducedMotion()) for (const m of net.materials) m.uniforms.uTime.value = now / 1000
       earth.rotation.y += dt * 0.004
       updateCamera(dt)
       controls.update()
@@ -723,13 +756,14 @@ function Canvas3D({ stateRef, view, layers, tourHighlight, aiRef }) {
       controls.dispose()
       disposeScene(scene)
       disposeScene(gizmo.scene)
-      environment.dispose()
-      pmrem.dispose()
+      cancelLater()
+      environment?.dispose()
+      pmrem?.dispose()
       renderer.dispose()
       renderer.domElement.remove()
       apiRef.current = null
     }
-  }, [stateRef])
+  }), [stateRef])
 
   useEffect(() => {
     viewRef.current = view

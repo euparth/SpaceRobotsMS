@@ -4,3 +4,7 @@ dist
 *.local
 .vercel
 scripts/surrogate/data/
+
+# Playwright
+test-results/
+playwright-report/

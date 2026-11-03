@@ -29,6 +29,8 @@ function Cell({ name, def, verdict, quantity, unit, qLabel, title, disagree, chi
       className={cx('flex min-w-0 flex-col gap-1 border border-ink-700 bg-ink-950/60 px-2 py-1.5', disagree && 'border-amber-500/50')}
       role="group"
       aria-label={`${name} verdict`}
+      data-verdict-cell={name.toLowerCase().replace(/\s+/g, '-')}
+      data-verdict={verdict ?? 'PENDING'}
     >
       <div className="flex items-center justify-between gap-1">
         <span className="text-[10px] font-medium uppercase tracking-[0.12em] text-slate-400">{name}</span>
@@ -65,7 +67,8 @@ export function envelopeTooltip(env) {
  * the solver verdict once a rollout has reached a decision, else the numeric fire-now label.
  */
 export default function VerdictsPanel({ verdicts, compact = false }) {
-  if (!verdicts) return <div className="p-3 text-[12px] text-slate-500">Computing verdicts…</div>
+  // Placeholder keeps the height of the loaded panel so the first verdicts message does not shift the layout below it
+  if (!verdicts) return <div className={cx('p-3 text-[12px] text-slate-500', compact ? 'min-h-[420px]' : 'min-h-[300px]')}>Computing verdicts…</div>
   const { rule, envelope, pinn, numeric, solver, limit } = verdicts
   const reference = solver && solver.verdict !== 'MISS' ? solver.verdict : numeric.verdict
   const dis = (v) => v != null && v !== 'MISS' && v !== reference
