@@ -1,0 +1,21 @@
+
+> space-debris-capture-sim@1.0.0 gen:surrogate
+> node scripts/surrogate/genData.mjs
+
+Generating 2400 RK4 trajectories (dt=0.02, H=3.2s)…
+  traj 400/2400
+  traj 800/2400
+  traj 1200/2400
+  traj 1600/2400
+  traj 2000/2400
+  traj 2400/2400
+  wrote trajectories.bin (10.8 MB) in 3340 ms
+Generating 4000 coupled strain labels on 8 threads…
+  strain done in 11.3 s
+  audit knnR2=0.870 smoothEnough=true
+  presets: S1:5.3% S2:3.5% S3:5.3% S4:4.9%
+Generating 1200 capture/fire-schedule labels on 8 threads (prior uniform-box)…
+  capture done in 26.8 s
+  naive accuracy 79.3% (must beat this)
+Done.
+EXIT:0

@@ -1,0 +1,12 @@
+
+> space-debris-capture-sim@1.0.0 check:surrogate
+> node scripts/surrogate/check.mjs
+
+latency 0.599 ms  budget 2 ms  ok=true
+accuracy 94.7%  naive 83.8%  beats=true
+  S1 predPeak=0.69 truth=0.00 securePred=true P=100.0% optMs=0 truth@opt=true
+  S2 predPeak=1.35 truth=0.85 securePred=true P=100.0% optMs=0 truth@opt=true
+  S3 predPeak=4.04 truth=4.20 securePred=false P=0.0% optMs=1600 truth@opt=false
+  S4 predPeak=4.32 truth=3.92 securePred=false P=37.0% optMs=1100 truth@opt=true
+check:surrogate PASSED
+EXIT:0

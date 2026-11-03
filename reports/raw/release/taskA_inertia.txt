@@ -1,0 +1,15 @@
+designation 12U CubeSat
+mass_kg 30
+dims_m [x,y,z] [0.227,0.366,0.24]
+solver inertia source: CUBESAT.inertia in src/physics/constants.js -> IX,IY,IZ in src/physics/rigidBody.js
+solver Ix_kgm2 0.479
+solver Iy_kgm2 0.273
+solver Iz_kgm2 0.464
+uniform-box Ix_kgm2 0.47889000000000004
+uniform-box Iy_kgm2 0.2728225
+uniform-box Iz_kgm2 0.4637125
+abs diff solver-box [0.00010999999999994348,0.0001774999999999971,0.0002874999999999961]
+ascending y=0.273 < z=0.464 < x=0.479
+min_axis y intermediate_axis z max_axis x
+z_is_intermediate true
+principalAxes() from rigidBody.js [{"axis":"x","I":0.479,"role":"major","stable":true},{"axis":"y","I":0.273,"role":"minor","stable":true},{"axis":"z","I":0.464,"role":"intermediate","stable":false}]

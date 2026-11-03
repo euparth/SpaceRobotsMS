@@ -1,0 +1,6 @@
+label: fireNowSecure (torque-free RK4, flight 0.3 s, window 0.25 s). rule: |wz0| <= 3. PINN: runSurrogateInference().fireNowSecure (committed weights.json)
+prior | n | rule SECURE | false-secure | %rule-SECURE | false-eject | physics-limited (rule SECURE & closed-form max>3) | physics SECURE | PINN==label | PINN==rule | PINN false-secure | PINN false-eject | mean|w| | min|w| | max|w|
+uniform-box | 1200 | 731 | 245 | 33.5157 | 4 | 340 | 490 | 1134 (94.5000%) | 915 (76.2500%) | 11 | 55 | 4.818759 | 0.488718 | 8.224481
+log-uniform-mag | 1200 | 1165 | 7 | 0.6009 | 4 | 26 | 1162 | 1177 (98.0833%) | 1180 (98.3333%) | 12 | 11 | 1.139777 | 0.050020 | 4.959560
+slow | 1200 | 1200 | 0 | 0.0000 | 0 | 0 | 1200 | 1200 (100.0000%) | 1200 (100.0000%) | 0 | 0 | 0.509823 | 0.000085 | 0.998237
+moderate | 1200 | 1200 | 0 | 0.0000 | 0 | 0 | 1200 | 1188 (99.0000%) | 1188 (99.0000%) | 0 | 12 | 2.019646 | 1.000170 | 2.996473

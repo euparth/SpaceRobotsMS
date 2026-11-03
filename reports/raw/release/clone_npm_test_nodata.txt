@@ -1,0 +1,215 @@
+
+> space-debris-capture-sim@1.0.0 test
+> node --experimental-loader ./scripts/validation/jsonLoader.mjs --test tests/
+
+TAP version 13
+# (node:99212) ExperimentalWarning: `--experimental-loader` may be removed in the future; instead use `register()`:
+# --import 'data:text/javascript,import { register } from "node:module"; import { pathToFileURL } from "node:url"; register("./scripts/validation/jsonLoader.mjs", pathToFileURL("./"));'
+# (Use `node --trace-warnings ...` to show where the warning was created)
+# Subtest: default coupledImpact() output is unchanged by the two-way option plumbing (reference values from validation_2026-11.md Task B)
+ok 1 - default coupledImpact() output is unchanged by the two-way option plumbing (reference values from validation_2026-11.md Task B)
+  ---
+  duration_ms: 85.193333
+  ...
+# Subtest: rk4Step with torque=null is bit-identical to the 3-argument call
+ok 2 - rk4Step with torque=null is bit-identical to the 3-argument call
+  ---
+  duration_ms: 1.113417
+  ...
+# Subtest: NetSolver.twoWay defaults to false and the reaction accumulators are zero on the default path
+ok 3 - NetSolver.twoWay defaults to false and the reaction accumulators are zero on the default path
+  ---
+  duration_ms: 0.539958
+  ...
+# Subtest: two-way coupling with drawstring off conserves total linear momentum to 1e-9 and is finite
+ok 4 - two-way coupling with drawstring off conserves total linear momentum to 1e-9 and is finite
+  ---
+  duration_ms: 41.161708
+  ...
+# Subtest: two-way single-axis z spins reproduce the one-way verdict boundary (3.0 capture, 3.5 eject)
+ok 5 - two-way single-axis z spins reproduce the one-way verdict boundary (3.0 capture, 3.5 eject)
+  ---
+  duration_ms: 19.555333
+  ...
+# (node:99213) ExperimentalWarning: `--experimental-loader` may be removed in the future; instead use `register()`:
+# --import 'data:text/javascript,import { register } from "node:module"; import { pathToFileURL } from "node:url"; register("./scripts/validation/jsonLoader.mjs", pathToFileURL("./"));'
+# (Use `node --trace-warnings ...` to show where the warning was created)
+# Subtest: 1e: envelope.omegaZMax equals rigidBody.polhodeEnvelope to 1e-12 on 200 seeded spins
+ok 6 - 1e: envelope.omegaZMax equals rigidBody.polhodeEnvelope to 1e-12 on 200 seeded spins
+  ---
+  duration_ms: 2.767583
+  ...
+# Subtest: 1e: rk4Omega (3-state) matches rigidBody.rk4Step ω components bit-for-bit over 3000 steps
+ok 7 - 1e: rk4Omega (3-state) matches rigidBody.rk4Step ω components bit-for-bit over 3000 steps
+  ---
+  duration_ms: 16.464
+  ...
+# Subtest: 1e: timeToThreshold is the first sampled time with |ωz| > limit on the RK4 trajectory
+ok 8 - 1e: timeToThreshold is the first sampled time with |ωz| > limit on the RK4 trajectory
+  ---
+  duration_ms: 38.978875
+  ...
+# Subtest: 1e: worker verdict code (computeVerdicts) equals the script verdicts on S1–S4
+ok 9 - 1e: worker verdict code (computeVerdicts) equals the script verdicts on S1–S4
+  ---
+  duration_ms: 313.6185
+  ...
+# Subtest: 1e: measured S1–S4 verdict table (values from research_2026-11 Phase 4)
+ok 10 - 1e: measured S1–S4 verdict table (values from research_2026-11 Phase 4)
+  ---
+  duration_ms: 25.453041
+  ...
+# (node:99214) ExperimentalWarning: `--experimental-loader` may be removed in the future; instead use `register()`:
+# --import 'data:text/javascript,import { register } from "node:module"; import { pathToFileURL } from "node:url"; register("./scripts/validation/jsonLoader.mjs", pathToFileURL("./"));'
+# (Use `node --trace-warnings ...` to show where the warning was created)
+# Subtest: 1a: |H| and T relative drift over 10 s at H stay below 1e-12
+ok 11 - 1a: |H| and T relative drift over 10 s at H stay below 1e-12
+  ---
+  duration_ms: 47.088375
+  ...
+# Subtest: 1b: RK4 error vs H/8 reference is at round-off for h<=H and decreases ~4th order for coarse h
+ok 12 - 1b: RK4 error vs H/8 reference is at round-off for h<=H and decreases ~4th order for coarse h
+  ---
+  duration_ms: 22.787167
+  ...
+# Subtest: 1c: closed-form max |wz| equals rigidBody.polhodeEnvelope and bounds the numeric 20 s peak
+ok 13 - 1c: closed-form max |wz| equals rigidBody.polhodeEnvelope and bounds the numeric 20 s peak
+  ---
+  duration_ms: 121.809125
+  ...
+# Subtest: 1c: closed-form candidates reject the infeasible branch (polhode does not cross that axis)
+ok 14 - 1c: closed-form candidates reject the infeasible branch (polhode does not cross that axis)
+  ---
+  duration_ms: 0.220458
+  ...
+# (node:99215) ExperimentalWarning: `--experimental-loader` may be removed in the future; instead use `register()`:
+# --import 'data:text/javascript,import { register } from "node:module"; import { pathToFileURL } from "node:url"; register("./scripts/validation/jsonLoader.mjs", pathToFileURL("./"));'
+# (Use `node --trace-warnings ...` to show where the warning was created)
+# Subtest: 5d: every README "Status and limitations" bullet quoted on /methods is present verbatim in README.md
+ok 15 - 5d: every README "Status and limitations" bullet quoted on /methods is present verbatim in README.md
+  ---
+  duration_ms: 1.31075
+  ...
+# Subtest: 5c: README carries the required sentence about the 20.75 % disagreement
+ok 16 - 5c: README carries the required sentence about the 20.75 % disagreement
+  ---
+  duration_ms: 0.173667
+  ...
+# Subtest: 5a: quoted inertia of the uniform box recomputes from mass and dimensions
+ok 17 - 5a: quoted inertia of the uniform box recomputes from mass and dimensions
+  ---
+  duration_ms: 0.174708
+  ...
+# Subtest: 5c: quoted preset table recomputes (closed-form max, predictOutcome, window peak) for S1–S5
+ok 18 - 5c: quoted preset table recomputes (closed-form max, predictOutcome, window peak) for S1–S5
+  ---
+  duration_ms: 22.512959
+  ...
+# Subtest: 5c: quoted counts are mutually consistent (uniform-box row equals Task C; two-way changed rows all within 0.024 of 3.0)
+ok 19 - 5c: quoted counts are mutually consistent (uniform-box row equals Task C; two-way changed rows all within 0.024 of 3.0)
+  ---
+  duration_ms: 0.287167
+  ...
+# (node:99216) ExperimentalWarning: `--experimental-loader` may be removed in the future; instead use `register()`:
+# --import 'data:text/javascript,import { register } from "node:module"; import { pathToFileURL } from "node:url"; register("./scripts/validation/jsonLoader.mjs", pathToFileURL("./"));'
+# (Use `node --trace-warnings ...` to show where the warning was created)
+# Subtest: 4a: physicsLib.momentumBudget is the shared src/physics/momentum.js function (one implementation for scripts and worker)
+ok 20 - 4a: physicsLib.momentumBudget is the shared src/physics/momentum.js function (one implementation for scripts and worker)
+  ---
+  duration_ms: 0.413167
+  ...
+# Subtest: 4a: two-way coupling, drawstring off — |ΔP_total| ≤ 1e-9 N·s and the body/net momentum exchange balances (research §3c)
+ok 21 - 4a: two-way coupling, drawstring off — |ΔP_total| ≤ 1e-9 N·s and the body/net momentum exchange balances (research §3c)
+  ---
+  duration_ms: 62.578709
+  ...
+# Subtest: 4a: live readout — crediting the pending one-substep reaction to the body
+ok 22 - 4a: live readout — crediting the pending one-substep reaction to the body
+  ---
+  duration_ms: 0.59475
+  ...
+# Subtest: 4a: drawstring on (production schedule) removes momentum from body+net — the readout must show it, not hide it
+ok 23 - 4a: drawstring on (production schedule) removes momentum from body+net — the readout must show it, not hide it
+  ---
+  duration_ms: 33.763916
+  ...
+# Subtest: 4a: one-way kinematics (no body feedback) loses the whole contact impulse
+ok 24 - 4a: one-way kinematics (no body feedback) loses the whole contact impulse
+  ---
+  duration_ms: 9.584875
+  ...
+# Subtest: 4a: state buffer header carries ΔP, ΔL and the coupling flags without overlapping node data
+ok 25 - 4a: state buffer header carries ΔP, ΔL and the coupling flags without overlapping node data
+  ---
+  duration_ms: 0.081667
+  ...
+# (node:99217) ExperimentalWarning: `--experimental-loader` may be removed in the future; instead use `register()`:
+# --import 'data:text/javascript,import { register } from "node:module"; import { pathToFileURL } from "node:url"; register("./scripts/validation/jsonLoader.mjs", pathToFileURL("./"));'
+# (Use `node --trace-warnings ...` to show where the warning was created)
+# Subtest: 3c: planChunks reproduces the genData.mjs 8-way split (per = ceil(N/8), seed + 9973·c)
+ok 26 - 3c: planChunks reproduces the genData.mjs 8-way split (per = ceil(N/8), seed + 9973·c)
+  ---
+  duration_ms: 0.944208
+  ...
+# Subtest: 3c: browser Monte Carlo path (uniform-box, N=1200, seed 777001) reproduces capture.json rows and gives 731 / 245 / 4
+not ok 27 - 3c: browser Monte Carlo path (uniform-box, N=1200, seed 777001) reproduces capture.json rows and gives 731 / 245 / 4
+  ---
+  duration_ms: 0.498292
+  location: 'file:///private/tmp/SpaceRobotsMS-rc1/tests/montecarlo.test.mjs:26:1'
+  failureType: 'testCodeFailure'
+  error: "ENOENT: no such file or directory, open '/private/tmp/SpaceRobotsMS-rc1/scripts/surrogate/data/capture.json'"
+  code: 'ENOENT'
+  stack: |-
+    Object.openSync (node:fs:596:3)
+    readFileSync (node:fs:464:35)
+    TestContext.<anonymous> (file:///private/tmp/SpaceRobotsMS-rc1/tests/montecarlo.test.mjs:27:26)
+    Test.runInAsyncScope (node:async_hooks:203:9)
+    Test.run (node:internal/test_runner/test:631:25)
+    Test.processPendingSubtests (node:internal/test_runner/test:374:18)
+    Test.postRun (node:internal/test_runner/test:715:19)
+    Test.run (node:internal/test_runner/test:673:12)
+    async startSubtest (node:internal/test_runner/harness:214:3)
+  ...
+# Subtest: 3a: every prior is deterministic in the seed and custom |ω| range is honoured
+ok 28 - 3a: every prior is deterministic in the seed and custom |ω| range is honoured
+  ---
+  duration_ms: 1.420375
+  ...
+# Subtest: 3b: CSV export has one header and one line per row with verdict strings
+ok 29 - 3b: CSV export has one header and one line per row with verdict strings
+  ---
+  duration_ms: 27.19575
+  ...
+# (node:99218) ExperimentalWarning: `--experimental-loader` may be removed in the future; instead use `register()`:
+# --import 'data:text/javascript,import { register } from "node:module"; import { pathToFileURL } from "node:url"; register("./scripts/validation/jsonLoader.mjs", pathToFileURL("./"));'
+# (Use `node --trace-warnings ...` to show where the warning was created)
+# Subtest: 2a: every sampled polhode point lies on both the energy ellipsoid and the momentum sphere (rel. 1e-5, Float32 storage)
+ok 30 - 2a: every sampled polhode point lies on both the energy ellipsoid and the momentum sphere (rel. 1e-5, Float32 storage)
+  ---
+  duration_ms: 39.110209
+  ...
+# Subtest: 2a: |Hz| along the sampled polhode never exceeds Iz·ωz,max (closed form)
+ok 31 - 2a: |Hz| along the sampled polhode never exceeds Iz·ωz,max (closed form)
+  ---
+  duration_ms: 23.26025
+  ...
+# Subtest: 2c: S5 "Envelope boundary" — |ωz0| ≤ 3 and closed-form ωz,max within 0.05 of 3.0 (recorded ω0 = [2.09, 1.00, 2.00])
+ok 32 - 2c: S5 "Envelope boundary" — |ωz0| ≤ 3 and closed-form ωz,max within 0.05 of 3.0 (recorded ω0 = [2.09, 1.00, 2.00])
+  ---
+  duration_ms: 24.096375
+  ...
+# Subtest: 2c: dataset presets S1–S4 are unchanged (genData.mjs seeds trajectories with them)
+ok 33 - 2c: dataset presets S1–S4 are unchanged (genData.mjs seeds trajectories with them)
+  ---
+  duration_ms: 0.35475
+  ...
+1..33
+# tests 33
+# suites 0
+# pass 32
+# fail 1
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 608.486792
+EXIT:1

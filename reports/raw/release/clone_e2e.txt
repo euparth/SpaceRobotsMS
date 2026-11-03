@@ -1,0 +1,12 @@
+
+> space-debris-capture-sim@1.0.0 test:e2e
+> playwright test
+
+
+Running 3 tests using 1 worker
+
+  ✓  1 [chromium] › e2e/smoke.spec.js:25:1 › workbench loads with no console errors and runs S4 to the measured verdicts (14.9s)
+  ✓  2 [chromium] › e2e/smoke.spec.js:55:1 › Monte Carlo N=100 completes; N=1200 seed 777001 uniform-box reproduces 731 / 245 / 4 (16.0s)
+  ✓  3 [chromium] › e2e/smoke.spec.js:75:1 › /methods renders without loading three.js (867ms)
+
+  3 passed (34.6s)

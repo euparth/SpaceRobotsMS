@@ -1,0 +1,30 @@
+IX=0.479 IY=0.273 IZ=0.464 H=0.0003333333333333333 FLIGHT=0.3 WINDOW=0.25 WZ_LIMIT=3
+spins: 50 rows of capture.json, mulberry32 seed 20261103, indices [291,655,935,588,571,1043,74,882,528,594,1083,23,518,977,249,928,116,1174,562,741,550,384,816,43,310,197,474,512,811,865,34,28,719,38,1119,930,220,547,1160,993,956,274,67,858,1092,697,328,69,1194,313]
+=== 1a drift over 10 s at H ===
+steps_per_run 30000
+rel_drift_|H| max 2.3215137374052146e-14 median 6.7332657660996924e-15
+rel_drift_T   max 4.5516287415555136e-14 median 1.4015808879954622e-14
+drift = max over all steps of |X(t)-X(0)|/X(0), then max/median across the 50 runs
+=== 1b convergence vs H/8 at t=0.3 and t=0.55 ===
+h=H/1 (0.0003333333333333333) max|Δω| t=0.30: 6.358079669841418e-14  t=0.55: 1.0627682028332764e-13
+h=H/2 (0.00016666666666666666) max|Δω| t=0.30: 5.837197499550496e-14  t=0.55: 1.0442236284636273e-13
+h=H/4 (0.00008333333333333333) max|Δω| t=0.30: 8.233873835987336e-14  t=0.55: 1.209423784477881e-13
+observed order log2(e_H/e_H/2): t=0.30 0.12331521213043553  t=0.55 0.025396260160410442
+observed order log2(e_H/2/e_H/4): t=0.30 -0.4962954609178236  t=0.55 -0.2118891472064756
+note: errors near 1e-13 are at double-precision round-off; order is not observable there
+--- supplementary coarse sweep (same 50 spins, same H/8 reference); multiples chosen so 0.30 s = 900H and 0.55 s = 1650H are integer step counts ---
+h=15H (0.005) max|Δω| t=0.30: 2.18742905519124e-10  t=0.55: 3.607873258249057e-10
+h=30H (0.01) max|Δω| t=0.30: 3.5031686307520833e-9  t=0.55: 5.7752240147324e-9 order_vs_prev=log(e/e_prev)/log(h/h_prev) t=0.30 4.001352304357648 t=0.55 4.000656344350494
+h=75H (0.024999999999999998) max|Δω| t=0.30: 1.3720746505305003e-7  t=0.55: 2.2584592378888001e-7 order_vs_prev=log(e/e_prev)/log(h/h_prev) t=0.30 4.002906625834325 t=0.55 4.001214723674118
+h=150H (0.049999999999999996) max|Δω| t=0.30: 0.000002204879714230919  t=0.55: 0.0000036200559812965396 order_vs_prev=log(e/e_prev)/log(h/h_prev) t=0.30 4.006269071110135 t=0.55 4.002601227172533
+=== 1c closed-form infinite-horizon max |wz| vs 0.25 s window peak (1200 rows) ===
+wall_s 9.543138750076293
+rule_secure 731 closed_form_max_gt_3 809
+physics_limited (rule SECURE & closed-form max > 3) 340
+window_limited (closed-form max > 3 & window peak <= 3) 99
+max(window peak - closed-form bound) 0 (positive = numeric exceeds bound)
+max|closedFormMaxWz - rigidBody.polhodeEnvelope.peak| 0
+long-horizon numeric peak over 20 s at H: max(longPeak - bound) 4.3520742565306136e-14
+max(bound - longPeak) over 20 s 1.5609692294304978e-7 rows with shortfall > 1e-3: 0
+bound - longPeak percentiles: p50 2.598157244904087e-10 p90 3.4990939035139945e-9 p99 4.185712487725368e-8 max 1.5609692294304978e-7
+tPeak percentiles (s): p50 9.3255 max 19.999

@@ -1,0 +1,6 @@
+id | w0 | closed-form max|wz| (infinite horizon) | predictOutcome verdict | window peak |wz| fire-now (rigid label path) | rule |wz0|<=3 | coupledImpact peak|wz| | coupledImpact verdict | coupledImpact maxStrain | first secure delay ms (fireSchedule step 0.04) | capture probability % over 3.2 s
+S1 | [0,0,0] | 0.000000 | SECURE | 0.000000 | true | 0.000000 | capture | 0.053478 | 0 | 100.0000
+S2 | [1.5,1,0.5] | 1.659865 | SECURE | 0.845196 | true | 0.833099 | capture | 0.035388 | 0 | 100.0000
+S3 | [0,0,4.2] | 4.200000 | EJECT | 4.200000 | false | 4.200000 | eject | 0.053462 | null | 0.0000
+S4 | [3,3,2.5] | 4.033684 | PHASE_DEPENDENT | 3.924574 | true | 3.908242 | eject | 0.049033 | 1080 | 32.0988
+note: live-worker end states (SECURED / EJECTED, enclosure after closure) are not produced by these headless paths

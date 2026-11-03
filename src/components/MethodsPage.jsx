@@ -434,9 +434,11 @@ export default function MethodsPage() {
           ))}
         </ul>
         <P>
-          Not measured in any report: comparison with Shin et al.'s published results, browser-side timing of the coupled and PINN paths,
-          CI results on GitHub-hosted runners before this release, byte-identity of the dataset on machines with fewer than 8 cores,
-          Lighthouse scores (see REL Phase 6).
+          Not measured in this release: comparison with Shin et al.'s published results, browser-side timing of the coupled and PINN
+          paths, CI on GitHub-hosted runners (the workflow file exists; no push was made in this session), byte-identity of the
+          dataset on machines with fewer than 8 cores, a Vercel deploy preview (no authenticated Vercel CLI in this session).
+          Lighthouse mobile scores for this build are in <Code>reports/release_1.0.md</Code> Phase 6; the workbench performance
+          score is below 85 on this machine under Lighthouse&apos;s simulated 4× CPU / Slow 4G throttle (three runs: 72, 74, 84).
         </P>
 
         {/* ------------------------------------------------------------------ 5 PROVENANCE */}
