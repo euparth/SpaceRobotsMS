@@ -1,0 +1,45 @@
+=== HASH BEFORE (Tue Nov  3 10:10:44 IST 2026) ===
+b794288469521126068c8311254ee438831257db058710147727b4425693e1d1  trajectories.bin
+52156b234d541aa3eb9b3d26588d3b50659ba7062980f3c899a48f09596cb841  trajectories.meta.json
+4375a5f65e210e465e23c5edbcab6bd1d71ffdfc0cfba85cb8190c7c91212fc7  strain.json
+0734478b6f55eabbd65ef2df5316940d42cbba05824156386165368fda6503c5  capture.json
+50988afa017e35c4c5deb8b577098cb8de35df9e21af50b405d7bf8d66eba6cd  audit.json
+a01e8cded2a794b3acb6a0f08d83d5f2161dc079f99a7a0b463ebeeb3c5991e8  summary.json
+=== npm run gen:surrogate ===
+
+> space-debris-capture-sim@1.0.0 gen:surrogate
+> node scripts/surrogate/genData.mjs
+
+Generating 2400 RK4 trajectories (dt=0.02, H=3.2s)…
+  traj 400/2400
+  traj 800/2400
+  traj 1200/2400
+  traj 1600/2400
+  traj 2000/2400
+  traj 2400/2400
+  wrote trajectories.bin (10.8 MB) in 2797 ms
+Generating 4000 coupled strain labels on 8 threads…
+  strain done in 7.6 s
+  audit knnR2=0.870 smoothEnough=true
+  presets: S1:5.3% S2:3.5% S3:5.3% S4:4.9%
+Generating 1200 capture/fire-schedule labels on 8 threads…
+  capture done in 20.2 s
+  naive accuracy 79.3% (must beat this)
+Done.
+EXIT_GEN=0
+=== HASH AFTER (Tue Nov  3 10:11:16 IST 2026) ===
+b794288469521126068c8311254ee438831257db058710147727b4425693e1d1  trajectories.bin
+52156b234d541aa3eb9b3d26588d3b50659ba7062980f3c899a48f09596cb841  trajectories.meta.json
+4375a5f65e210e465e23c5edbcab6bd1d71ffdfc0cfba85cb8190c7c91212fc7  strain.json
+0734478b6f55eabbd65ef2df5316940d42cbba05824156386165368fda6503c5  capture.json
+50988afa017e35c4c5deb8b577098cb8de35df9e21af50b405d7bf8d66eba6cd  audit.json
+a01e8cded2a794b3acb6a0f08d83d5f2161dc079f99a7a0b463ebeeb3c5991e8  summary.json
+IDENTICAL audit.json 50988afa017e35c4c5deb8b577098cb8de35df9e21af50b405d7bf8d66eba6cd
+IDENTICAL capture.json 0734478b6f55eabbd65ef2df5316940d42cbba05824156386165368fda6503c5
+IDENTICAL strain.json 4375a5f65e210e465e23c5edbcab6bd1d71ffdfc0cfba85cb8190c7c91212fc7
+IDENTICAL summary.json a01e8cded2a794b3acb6a0f08d83d5f2161dc079f99a7a0b463ebeeb3c5991e8
+IDENTICAL trajectories.bin b794288469521126068c8311254ee438831257db058710147727b4425693e1d1
+IDENTICAL trajectories.meta.json 52156b234d541aa3eb9b3d26588d3b50659ba7062980f3c899a48f09596cb841
+IDENTICAL vs 2026-11-02 snapshot trajectories.bin
+IDENTICAL vs 2026-11-02 snapshot capture.json
+IDENTICAL vs 2026-11-02 snapshot strain.json

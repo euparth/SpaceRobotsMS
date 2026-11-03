@@ -1,0 +1,27 @@
+rows 1200
+label used: fireNowSecure = peakWzInContactWindow(wx,wy,wz,0) <= WZ_LIMIT (torque-free RK4, flight 0.3 s + window 0.25 s, no net)
+rule: |wz(0)| <= WZ_LIMIT => SECURE; WZ_LIMIT = 3
+rule vs stored naiveEject field mismatches 0
+rule_secure 731 rule_eject 469
+physics_secure 490 physics_eject 710
+false_secure 245 pct_of_all 20.416666666666668 pct_of_rule_secure 33.515731874145004
+false_eject 4 pct_of_all 0.3333333333333333 pct_of_rule_secure 0.5471956224350205 pct_of_rule_eject 0.8528784648187633
+total_disagreements 249 pct_of_all 20.75
+reproduces_249 true
+false_secure |omega(0)| histogram (bin 0.5 rad/s), n=245
+  min 3.3052840457427126 max 7.2059289283353
+  [3.0, 3.5)    5 #####
+  [3.5, 4.0)   13 #############
+  [4.0, 4.5)   22 ######################
+  [4.5, 5.0)   39 #######################################
+  [5.0, 5.5)   43 ###########################################
+  [5.5, 6.0)   62 ##############################################################
+  [6.0, 6.5)   42 ##########################################
+  [6.5, 7.0)   15 ###############
+  [7.0, 7.5)    4 ####
+--- secondary: same rule vs coupled rollout verdict (coupledImpact eject) on all rows ---
+coupled_rollouts 1200 wall_s 8.246621458053589
+coupled false_secure 239 pct_of_all 19.916666666666668 pct_of_rule_secure 32.69493844049248
+coupled false_eject 3 pct_of_all 0.25 pct_of_rule_secure 0.4103967168262654 pct_of_rule_eject 0.6396588486140725
+coupled total_disagreements 242
+coupled verdict == dataset fireNowSecure label 1191 of 1200

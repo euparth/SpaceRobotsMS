@@ -1,0 +1,75 @@
+rg ripgrep 15.1.0-cursor5 (rev c3e3c2f7ec); excluded: node_modules/, .git/, reports/, scripts/validation/ (created this session), surrogate_verification_log.txt (run log); --no-ignore so gitignored dist/ and .vercel/ are scanned
+### PATTERN (fixed, case-insensitive): speedupVsCoupledEstimate
+./scripts/surrogate/train.mjs:539:    speedupVsCoupledEstimate: coupledMsEstimate / Math.max(latencyMs, 1e-6),
+./src/surrogate/metrics.json:30:  "speedupVsCoupledEstimate": 1.5787365244858496,
+./dist/assets/index-CEHtkxbA.js:9::g4,latencyBudgetMs:y4,latencyOk:w4,coupledRolloutMsEstimate:_4,rigidRolloutMsEstimate:N4,speedupVsCoupledEstimate:j4,fidelityScore:v4,threadArea:S4,youngsModulus:k4,wovenEfficiency:E4,label:T4,checkAccur
+### PATTERN (fixed, case-insensitive): coupledMsEstimate
+./scripts/surrogate/train.mjs:508:  const coupledMsEstimate = 17
+./scripts/surrogate/train.mjs:537:    coupledRolloutMsEstimate: coupledMsEstimate,
+./scripts/surrogate/train.mjs:539:    speedupVsCoupledEstimate: coupledMsEstimate / Math.max(latencyMs, 1e-6),
+### PATTERN (fixed, case-insensitive): coupledRolloutMsEstimate
+./src/services/aiSurrogateEngine.js:15:let coupledMs = METRICS.coupledRolloutMsEstimate ?? 17
+./src/surrogate/inference.js:251:  const coupledMs = opts.coupledMs ?? metricsJson.coupledRolloutMsEstimate ?? 17
+./src/surrogate/metrics.json:28:  "coupledRolloutMsEstimate": 17,
+./dist/assets/index-CEHtkxbA.js:9:y:x4,naiveAccuracy:f4,beatsNaive:b4,inferenceLatencyMs:g4,latencyBudgetMs:y4,latencyOk:w4,coupledRolloutMsEstimate:_4,rigidRolloutMsEstimate:N4,speedupVsCoupledEstimate:j4,fidelityScore:v4,threadArea:S4,y
+./dist/assets/index-CEHtkxbA.js:9:oungsModulus??12e10,D=j0.threadArea??Math.PI*25e-8,y=g*w*x.peakStrain*D,N=a.coupledMs??j0.coupledRolloutMsEstimate??17,O=a.rigidMs??j0.rigidRolloutMsEstimate??.2,E=N/Math.max(p,1e-6);return{wx:t,wy:e,wz:n
+./dist/assets/index-CEHtkxbA.js:9:e:b,confidence:Math.min(.99,Math.max(.5,j0.captureAccuracy??.9))}}let C1=null,t2="",u2=l2.coupledRolloutMsEstimate??17,h2=l2.rigidRolloutMsEstimate??.2;function U4({coupledMs:t,rigidMs:e}={}){Number.isFin
+./scripts/surrogate/train.mjs:537:    coupledRolloutMsEstimate: coupledMsEstimate,
+### PATTERN (fixed, case-insensitive): ?? 17
+./src/services/aiSurrogateEngine.js:15:let coupledMs = METRICS.coupledRolloutMsEstimate ?? 17
+./src/surrogate/inference.js:251:  const coupledMs = opts.coupledMs ?? metricsJson.coupledRolloutMsEstimate ?? 17
+### PATTERN (fixed, case-insensitive): speedup
+./src/services/telemetryExporter.js:43:  ['ai_speedup', '-'],
+./src/services/telemetryExporter.js:100:      ai_speedup: ai ? r6(ai.solverSpeedupFactor) : '',
+./src/services/telemetryExporter.js:157:          speedup_vs_coupled: surrogate.solverSpeedupFactor,
+./src/services/rosTelemetryNode.js:359:                solver_speedup: r6(ai.solverSpeedupFactor),
+./src/services/cliCommands.js:257:              `speedup ${f3(p.solverSpeedupFactor)}× vs coupled ${f3(p.coupledRolloutMs)} ms (rigid ${f3(p.rigidRolloutMs)} ms)`,
+./src/hooks/useSurrogate.js:64:      result.solverSpeedupFactor = base.coupledMs / Math.max(result.inferenceLatencyMs, 1e-6)
+./src/hooks/useSurrogate.js:98:  // Kick a benchmark once on mount so HUD speedup is live
+./dist/assets/index-CEHtkxbA.js:9::g4,latencyBudgetMs:y4,latencyOk:w4,coupledRolloutMsEstimate:_4,rigidRolloutMsEstimate:N4,speedupVsCoupledEstimate:j4,fidelityScore:v4,threadArea:S4,youngsModulus:k4,wovenEfficiency:E4,la
+./dist/assets/index-CEHtkxbA.js:9:chDelayMs:c.optimalLaunchDelayMs,firstSecureMs:c.firstSecureMs,inferenceLatencyMs:p,solverSpeedupFactor:E,rigidRolloutMs:O,coupledRolloutMs:N,pinnFidelityScore:j0.fidelityScore??j0.captur
+./dist/assets/index-CEHtkxbA.js:9:=B4(N,O,E,10),L=B1();t0.coupledRolloutMs=L.coupledMs,t0.rigidRolloutMs=L.rigidMs,t0.solverSpeedupFactor=L.coupledMs/Math.max(t0.inferenceLatencyMs,1e-6),p.current=t0,($=t.setSurrogatePred
+./dist/assets/index-CEHtkxbA.js:10:aunchDelayMs} ms · ε̂ ${(100*c.peakStrain).toFixed(2)}% · T̂ ${i0(c.peakTensionN)} N`),W(`speedup ${i0(c.solverSpeedupFactor)}× vs coupled ${i0(c.coupledRolloutMs)} ms (rigid ${i0(c.rigid
+./dist/assets/index-CEHtkxbA.js:10:unch_delay_ms:p.optimalLaunchDelayMs,inference_latency_ms:h0(p.inferenceLatencyMs),solver_speedup:h0(p.solverSpeedupFactor),fidelity:h0(p.pinnFidelityScore),model:p.modelLabel}))))}},dest
+./dist/assets/index-CEHtkxbA.js:90:t:"ms"}),s.jsx(m0,{label:"RIGID",value:j(r.rigidRolloutMs,2),unit:"ms"}),s.jsx(m0,{label:"SPEEDUP",value:`${j(r.solverSpeedupFactor,1)}×`}),s.jsx(m0,{label:"FIDELITY",value:`${j(100*(r.pi
+./dist/assets/index-CEHtkxbA.js:90: vs naive |ωz₀|>3 rule (",j(100*((n==null?void 0:n.naiveAccuracy)??0),1),"%). Latency and speedup re-measured in-browser. Strain head withheld from demo (held-out R² not useful yet)."]})]
+./dist/assets/index-CEHtkxbA.js:90:,"rad/s"],["ai_peak_strain","-"],["ai_optimal_delay_ms","ms"],["ai_latency_ms","ms"],["ai_speedup","-"]]),G=t=>Number.isFinite(t)?Math.round(t*1e6)/1e6:null;class z6{constructor(e=6e4){th
+./dist/assets/index-CEHtkxbA.js:90:ptimal_delay_ms:n?n.optimalLaunchDelayMs:"",ai_latency_ms:n?G(n.inferenceLatencyMs):"",ai_speedup:n?G(n.solverSpeedupFactor):""}))}}function F6(t,{decision:e,eta:n,surrogate:a=null}){retu
+./dist/assets/index-CEHtkxbA.js:90:rogate:a?{model:a.modelLabel,fidelity:a.pinnFidelityScore,latency_ms:a.inferenceLatencyMs,speedup_vs_coupled:a.solverSpeedupFactor,fire_now_secure:a.fireNowSecure,optimal_launch_delay_ms:
+./README.md:34:    aiSurrogateEngine.js PINN / MLP forward pass wrapper (measured latency & speedup)
+./README.md:54:nce latency, coupled/rigid rollout baselines (worker `benchmark`), held-out fidelity, and speedup. The naive “initial |ωz| > 3 ⇒ eject” rule is wrong on ~21% of random spins (Z is interme
+./src/surrogate/inference.js:253:  const speedup = coupledMs / Math.max(latencyMs, 1e-6)
+./src/surrogate/inference.js:274:    solverSpeedupFactor: speedup,
+./src/components/TelemetryHUD.jsx:353:          <Metric label="SPEEDUP" value={`${fmt(p.solverSpeedupFactor, 1)}×`} />
+./src/components/TelemetryHUD.jsx:359:          speedup re-measured in-browser. Strain head withheld from demo (held-out R² not useful yet).
+./src/surrogate/metrics.json:30:  "speedupVsCoupledEstimate": 1.5787365244858496,
+./scripts/surrogate/train.mjs:539:    speedupVsCoupledEstimate: coupledMsEstimate / Math.max(latencyMs, 1e-6),
+### PATTERN (fixed, case-insensitive): 14x
+(no hits)
+### PATTERN (fixed, case-insensitive): 14×
+(no hits)
+### PATTERN (fixed, case-insensitive): 40 ms
+(no hits)
+### PATTERN (fixed, case-insensitive): 40ms
+(no hits)
+### PATTERN (fixed, case-insensitive): <2 ms vs
+(no hits)
+### PATTERN (fixed, case-insensitive): < 2 ms vs
+(no hits)
+### PATTERN (fixed, case-insensitive): 17 ms
+(no hits)
+### PATTERN (fixed, case-insensitive): 17ms
+(no hits)
+### PATTERN (fixed, case-insensitive): 2 ms
+./README.md:58:| Latency | full forward pass &lt; 2 ms |
+./README.md:127:npm run check:surrogate  # latency < 2 ms + accuracy beats naive |ωz|>3 rule
+./scripts/surrogate/check.mjs:2: * Gate: latency < 2 ms and held-out capture accuracy beats the naive |ωz|>3 rule.
+./scripts/surrogate/check.mjs:158:console.log(`latency ${latencyMs.toFixed(3)} ms  budget 2 ms  ok=${latencyOk}`)
+### PATTERN (fixed, case-insensitive): faster
+./scripts/surrogate/nn.mjs:177:/** Inference-only forward without cache (faster). */
+### PATTERN (fixed, case-insensitive): x faster
+(no hits)
+### PATTERN (fixed, case-insensitive): latencyBudgetMs
+./dist/assets/index-CEHtkxbA.js:9:peak:m4,strain:p4,captureAccuracy:x4,naiveAccuracy:f4,beatsNaive:b4,inferenceLatencyMs:g4,latencyBudgetMs:y4,latencyOk:w4,coupledRolloutMsEstimate:_4,rigidRolloutMsEstimate:N4,speedupVsCoupledEst
+./src/surrogate/metrics.json:26:  "latencyBudgetMs": 2,
+./scripts/surrogate/train.mjs:535:    latencyBudgetMs: 2,

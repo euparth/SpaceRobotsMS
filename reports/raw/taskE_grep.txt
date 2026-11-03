@@ -1,0 +1,19 @@
+rg ripgrep 15.1.0-cursor5 (rev c3e3c2f7ec); same exclusions as taskD_grep.txt; case-insensitive fixed-string match
+### PATTERN: 21.1
+(no hits)
+### PATTERN: ABAQUS
+(no hits)
+### PATTERN: thesis simulation
+(no hits)
+### PATTERN: my thesis
+(no hits)
+### PATTERN: discovered
+(no hits)
+### PATTERN: 14x
+(no hits)
+### PATTERN: 40 ms
+(no hits)
+### PATTERN: 15+
+./dist/assets/index-CEHtkxbA.js:69:.fillStyle="#717b86",t.fillRect(0,0,e,n);for(let i=0;i<260;i++){t.strokeStyle=`rgba(255,255,255,${.015+Math.random()*.03})`;const o=Math.random()*n;t.beginPath(),t.moveTo(0,o),t.lineTo(e,o+(Math.random()
+### PATTERN: published
+./README.md:5: in LEO being captured by a deployable **Kevlar 49 net**. Physics runs in a WebWorker, telemetry is published on a ROS 2-style topic bus, and the net is rendered with a custom GLSL strain shader.
