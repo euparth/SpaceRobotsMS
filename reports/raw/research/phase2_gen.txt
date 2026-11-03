@@ -1,0 +1,63 @@
+=== default path regeneration (must be byte-identical) Tue Nov  3 11:11:28 IST 2026 ===
+
+> space-debris-capture-sim@1.0.0 gen:surrogate
+> node scripts/surrogate/genData.mjs
+
+Generating 2400 RK4 trajectories (dt=0.02, H=3.2s)…
+  traj 400/2400
+  traj 800/2400
+  traj 1200/2400
+  traj 1600/2400
+  traj 2000/2400
+  traj 2400/2400
+  wrote trajectories.bin (10.8 MB) in 2725 ms
+Generating 4000 coupled strain labels on 8 threads…
+  strain done in 6.4 s
+  audit knnR2=0.870 smoothEnough=true
+  presets: S1:5.3% S2:3.5% S3:5.3% S4:4.9%
+Generating 1200 capture/fire-schedule labels on 8 threads (prior uniform-box)…
+  capture done in 17.6 s
+  naive accuracy 79.3% (must beat this)
+Done.
+EXIT_GEN=0
+b794288469521126068c8311254ee438831257db058710147727b4425693e1d1  trajectories.bin
+52156b234d541aa3eb9b3d26588d3b50659ba7062980f3c899a48f09596cb841  trajectories.meta.json
+4375a5f65e210e465e23c5edbcab6bd1d71ffdfc0cfba85cb8190c7c91212fc7  strain.json
+0734478b6f55eabbd65ef2df5316940d42cbba05824156386165368fda6503c5  capture.json
+50988afa017e35c4c5deb8b577098cb8de35df9e21af50b405d7bf8d66eba6cd  audit.json
+a01e8cded2a794b3acb6a0f08d83d5f2161dc079f99a7a0b463ebeeb3c5991e8  summary.json
+expected (validation_2026-11.md Task F):
+b794288469521126068c8311254ee438831257db058710147727b4425693e1d1 trajectories.bin / 0734478b6f55eabbd65ef2df5316940d42cbba05824156386165368fda6503c5 capture.json / 4375a5f65e210e465e23c5edbcab6bd1d71ffdfc0cfba85cb8190c7c91212fc7 strain.json / a01e8cded2a794b3acb6a0f08d83d5f2161dc079f99a7a0b463ebeeb3c5991e8 summary.json
+=== prior uniform-box ===
+Generating 1200 capture/fire-schedule labels on 8 threads (prior uniform-box)…
+  capture done in 20.9 s
+  naive accuracy 79.3% (must beat this)
+Done.
+EXIT=0
+0734478b6f55eabbd65ef2df5316940d42cbba05824156386165368fda6503c5  scripts/surrogate/data/priors/uniform-box/capture.json
+793ce81af36ff9d18f4e9fcf4d68442d5295a3ff9f44fb4b3233057d1bdd0e9a  scripts/surrogate/data/priors/uniform-box/summary.json
+=== prior log-uniform-mag ===
+Generating 1200 capture/fire-schedule labels on 8 threads (prior log-uniform-mag)…
+  capture done in 19.5 s
+  naive accuracy 99.1% (must beat this)
+Done.
+EXIT=0
+b71f48fbeba3107c2fb502cec94b9d322a74a8ba456facb49f3f535527b0711b  scripts/surrogate/data/priors/log-uniform-mag/capture.json
+deffa732047da8adbc2fb7d5625aa17942748af7e6597fa6f2fff899e62888c3  scripts/surrogate/data/priors/log-uniform-mag/summary.json
+=== prior slow ===
+Generating 1200 capture/fire-schedule labels on 8 threads (prior slow)…
+  capture done in 26.0 s
+  naive accuracy 100.0% (must beat this)
+Done.
+EXIT=0
+766eee0cecc6d9db801ff3cbb702cd59c6526864889eb9c9555b21c8e48b2754  scripts/surrogate/data/priors/slow/capture.json
+53c024c8ee0841f521ae2bfeb888b7c2056b573e94387afabcbdb5ec9e802ac2  scripts/surrogate/data/priors/slow/summary.json
+=== prior moderate ===
+Generating 1200 capture/fire-schedule labels on 8 threads (prior moderate)…
+  capture done in 21.6 s
+  naive accuracy 100.0% (must beat this)
+Done.
+EXIT=0
+5fb56177f459c966ff31dff8da4786a448ef26415720516e3fc3d00ff6fd536e  scripts/surrogate/data/priors/moderate/capture.json
+e60d76099aa8274f35ec38ce39a26653d517d280d9d5c5bf85cbdd5cf60259ff  scripts/surrogate/data/priors/moderate/summary.json
+priors/uniform-box/capture.json IDENTICAL to reference capture.json

@@ -7,6 +7,10 @@
  *   scripts/surrogate/data/audit.json        — strain smoothness audit
  *
  * Usage: node scripts/surrogate/genData.mjs
+ *        node scripts/surrogate/genData.mjs --only capture --prior <name> --out <dir>
+ *   --prior  spin prior for the capture set (see priors.mjs); default uniform-box = historical behaviour
+ *   --out    output directory; default scripts/surrogate/data
+ *   --only capture   skip trajectories + strain and write only capture.json / summary.json
  */
 import { mkdirSync, writeFileSync } from 'fs'
 import { join, dirname } from 'path'
@@ -25,9 +29,24 @@ import {
   CONTACT_WINDOW,
   PRESETS,
 } from './physicsLib.mjs'
+import { samplePrior, PRIORS } from './priors.mjs'
+
+function parseArgs(argv) {
+  const opts = { prior: 'uniform-box', out: null, only: null }
+  for (let i = 0; i < argv.length; i++) {
+    if (argv[i] === '--prior') opts.prior = argv[++i]
+    else if (argv[i] === '--out') opts.out = argv[++i]
+    else if (argv[i] === '--only') opts.only = argv[++i]
+    else throw new Error(`unknown argument ${argv[i]}`)
+  }
+  if (!PRIORS.includes(opts.prior)) throw new Error(`--prior must be one of ${PRIORS.join(', ')}`)
+  if (opts.only && opts.only !== 'capture') throw new Error('--only accepts only "capture"')
+  return opts
+}
+const OPTS = isMainThread ? parseArgs(process.argv.slice(2)) : { prior: workerData.prior ?? 'uniform-box' }
 
 const __dirname = dirname(fileURLToPath(import.meta.url))
-const DATA = join(__dirname, 'data')
+const DATA = isMainThread && OPTS.out ? OPTS.out : join(__dirname, 'data')
 const N_TRAJ = 2400
 const N_STRAIN = 4000
 const N_CAPTURE = 1200
@@ -55,7 +74,7 @@ if (!isMainThread) {
     }
   } else if (kind === 'capture') {
     for (let i = 0; i < count; i++) {
-      const [wx, wy, wz] = sampleOmega(rng)
+      const [wx, wy, wz] = samplePrior(rng, OPTS.prior)
       const peak0 = peakWzInContactWindow(wx, wy, wz, 0)
       const sched = fireSchedule(wx, wy, wz, HORIZON, 0.04)
       rows.push({
@@ -84,7 +103,7 @@ function spawnPool(kind, total, baseSeed) {
     jobs.push(
       new Promise((resolve, reject) => {
         const w = new Worker(fileURLToPath(import.meta.url), {
-          workerData: { kind, seed: baseSeed + c * 9973, count, offset },
+          workerData: { kind, seed: baseSeed + c * 9973, count, offset, prior: OPTS.prior },
         })
         w.on('message', resolve)
         w.on('error', reject)
@@ -187,20 +206,23 @@ function auditStrain(rows) {
 
 async function main() {
   mkdirSync(DATA, { recursive: true })
-  writeTrajectories()
+  let audit = null
+  if (OPTS.only !== 'capture') {
+    writeTrajectories()
 
-  console.log(`Generating ${N_STRAIN} coupled strain labels on ${CORES} threads…`)
-  const tS = performance.now()
-  const strain = await spawnPool('strain', N_STRAIN, 424242)
-  writeFileSync(join(DATA, 'strain.json'), JSON.stringify(strain))
-  console.log(`  strain done in ${((performance.now() - tS) / 1000).toFixed(1)} s`)
+    console.log(`Generating ${N_STRAIN} coupled strain labels on ${CORES} threads…`)
+    const tS = performance.now()
+    const strain = await spawnPool('strain', N_STRAIN, 424242)
+    writeFileSync(join(DATA, 'strain.json'), JSON.stringify(strain))
+    console.log(`  strain done in ${((performance.now() - tS) / 1000).toFixed(1)} s`)
 
-  const audit = auditStrain(strain)
-  writeFileSync(join(DATA, 'audit.json'), JSON.stringify(audit, null, 2))
-  console.log(`  audit knnR2=${audit.knnR2.toFixed(3)} smoothEnough=${audit.smoothEnough}`)
-  console.log('  presets:', audit.presets.map((p) => `${p.id}:${(100 * p.maxStrain).toFixed(1)}%`).join(' '))
+    audit = auditStrain(strain)
+    writeFileSync(join(DATA, 'audit.json'), JSON.stringify(audit, null, 2))
+    console.log(`  audit knnR2=${audit.knnR2.toFixed(3)} smoothEnough=${audit.smoothEnough}`)
+    console.log('  presets:', audit.presets.map((p) => `${p.id}:${(100 * p.maxStrain).toFixed(1)}%`).join(' '))
+  }
 
-  console.log(`Generating ${N_CAPTURE} capture/fire-schedule labels on ${CORES} threads…`)
+  console.log(`Generating ${N_CAPTURE} capture/fire-schedule labels on ${CORES} threads (prior ${OPTS.prior})…`)
   const tC = performance.now()
   const capture = await spawnPool('capture', N_CAPTURE, 777001)
   writeFileSync(join(DATA, 'capture.json'), JSON.stringify(capture))
@@ -223,6 +245,7 @@ async function main() {
     wzLimit: WZ_LIMIT,
     audit,
   }
+  if (OPTS.prior !== 'uniform-box') summary.prior = OPTS.prior
   writeFileSync(join(DATA, 'summary.json'), JSON.stringify(summary, null, 2))
   console.log(`  naive accuracy ${(100 * summary.naiveAccuracy).toFixed(1)}% (must beat this)`)
   console.log('Done.')
