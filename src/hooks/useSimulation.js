@@ -41,6 +41,8 @@ export function readSnapshot(b) {
     paused: b[F.PAUSED] > 0.5,
     substeps: Math.round(b[F.SUBSTEPS]),
     eta: b[F.ETA],
+    tLaunch: b[F.T_LAUNCH],
+    tContact: b[F.T_CONTACT],
   }
 }
 
@@ -58,6 +60,8 @@ export function useSimulation() {
 
   const [snapshot, setSnapshot] = useState(null)
   const [decision, setDecision] = useState(null)
+  const verdictsRef = useRef(null)
+  const [verdicts, setVerdicts] = useState(null)
   const [events, setEvents] = useState([])
   const [commanded, setCommanded] = useState([0, 0, 0])
 
@@ -98,6 +102,12 @@ export function useSimulation() {
           decisionRef.current = data.decision
           setDecision(data.decision)
           break
+        case 'verdicts': {
+          const v = data.verdicts ? { ...data.verdicts, solver: data.solver ?? null } : null
+          verdictsRef.current = v
+          setVerdicts(v)
+          break
+        }
         case 'reset':
           history.clear()
           recorder.clear()
@@ -219,6 +229,7 @@ export function useSimulation() {
       getSnapshot: () => snapshotRef.current,
       getCommanded: () => commandedRef.current,
       getSurrogate: () => surrogateRef.current,
+      getVerdicts: () => verdictsRef.current,
     }),
     [
       history,
@@ -239,5 +250,5 @@ export function useSimulation() {
     ],
   )
 
-  return { api, snapshot, decision, events, commanded }
+  return { api, snapshot, decision, verdicts, events, commanded }
 }

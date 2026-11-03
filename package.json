@@ -7,7 +7,7 @@
     "dev": "vite",
     "build": "vite build",
     "preview": "vite preview",
-    "test": "node --test tests/",
+    "test": "node --experimental-loader ./scripts/validation/jsonLoader.mjs --test tests/",
     "check:physics": "node scripts/physics-check.mjs",
     "gen:surrogate": "node scripts/surrogate/genData.mjs",
     "train:surrogate": "node scripts/surrogate/train.mjs",
@@ -20,6 +20,7 @@
     "three": "^0.170.0"
   },
   "devDependencies": {
+    "@playwright/test": "^1.61.1",
     "@vitejs/plugin-react": "^4.3.4",
     "autoprefixer": "^10.4.20",
     "postcss": "^8.4.49",

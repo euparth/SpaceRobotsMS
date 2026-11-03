@@ -71,10 +71,16 @@ export function useSurrogate(simApi, snapshot) {
 
   const toggle = useCallback(() => setEnabled((v) => !v), [])
 
+  /**
+   * Auto-fire uses the numeric secure window from the worker's RK4 trajectory
+   * (verdicts.numeric.firstSecureDelayMs), not the PINN delay. The PINN delay stays visible in
+   * the HUD as an estimate (test MAE 703 ms).
+   */
   const armAutoFire = useCallback(() => {
-    const p = predRef.current
-    if (!p || !simApi?.launchAt) return false
-    const delayMs = p.optimalLaunchDelayMs ?? 0
+    const n = simApi?.getVerdicts?.()?.numeric
+    if (!n || !simApi?.launchAt) return false
+    const delayMs = n.fireNowSecure ? 0 : n.firstSecureDelayMs
+    if (delayMs == null) return false
     simApi.launchAt(delayMs)
     setAutoFireArmed(true)
     return true

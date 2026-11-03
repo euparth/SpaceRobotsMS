@@ -294,7 +294,7 @@ function TopBar({ snapshot, commanded, bridge, busHz, onTakeTour, aiEnabled, onT
 }
 
 export default function GNCWorkbench({ sim }) {
-  const { api, snapshot, decision, events, commanded } = sim
+  const { api, snapshot, decision, verdicts, events, commanded } = sim
   const ai = useSurrogate(api, snapshot)
   const [view, setView] = useState('iso')
   const [layers, setLayers] = useState({ vectors: true, axes: true, grid: true, membrane: true, ai: true })
@@ -661,6 +661,7 @@ export default function GNCWorkbench({ sim }) {
               metrics={ai.metrics}
               onArmAutoFire={ai.armAutoFire}
               autoFireArmed={ai.autoFireArmed}
+              verdicts={verdicts}
               tourHighlight={tourHighlight}
               onScroll={handleSheetScroll}
             />
@@ -687,6 +688,7 @@ export default function GNCWorkbench({ sim }) {
               onArmAutoFire={ai.armAutoFire}
               autoFireArmed={ai.autoFireArmed}
               commanded={commanded}
+              verdicts={verdicts}
               onScroll={handleSheetScroll}
             />
           </div>

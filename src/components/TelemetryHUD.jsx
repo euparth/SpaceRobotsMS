@@ -4,10 +4,12 @@ import { NET_MASS, NODE_MASS, REST_LENGTH, SEGMENT_COUNT } from '../physics/netT
 import { IZ, principalAxes } from '../physics/rigidBody.js'
 import { PHASE, STATE_LENGTH } from '../physics/stateLayout.js'
 import TopicMonitor from './TopicMonitor.jsx'
+import VerdictsPanel from './VerdictsPanel.jsx'
 import { Label, Metric, Readout, Section, cx, fmt } from './ui.jsx'
 
 const TABS = Object.freeze([
-  { id: 'ai', label: 'AI' },
+  { id: 'verdicts', label: 'Verdicts' },
+  { id: 'ai', label: 'PINN' },
   { id: 'state', label: 'State' },
   { id: 'ros', label: 'ROS 2' },
   { id: 'model', label: 'Model' },
@@ -285,11 +287,19 @@ export function WzChart({ prediction, commanded }) {
   )
 }
 
-function AiTab({ enabled, prediction, metrics, onArmAutoFire, autoFireArmed, commanded }) {
+/** Numeric secure window (RK4 trajectory) drives auto-fire; the PINN delay is shown as an estimate. */
+export function autoFirePlan(verdicts) {
+  const n = verdicts?.numeric
+  if (!n) return { ready: false, delayMs: null, never: false }
+  const delayMs = n.fireNowSecure ? 0 : n.firstSecureDelayMs
+  return { ready: true, delayMs, never: delayMs == null }
+}
+
+function AiTab({ enabled, prediction, metrics, onArmAutoFire, autoFireArmed, commanded, verdicts }) {
   if (!enabled) {
     return (
       <div className="p-4 text-[12px] text-slate-500">
-        AI predictor is off. Toggle <span className="text-slate-300">AI PREDICTOR</span> in the top bar to run the PINN surrogate.
+        PINN surrogate is off. Toggle <span className="text-slate-300">PINN</span> in the top bar to run it.
       </div>
     )
   }
@@ -297,8 +307,9 @@ function AiTab({ enabled, prediction, metrics, onArmAutoFire, autoFireArmed, com
     return <div className="p-4 text-[12px] text-slate-500">Warming up surrogate…</div>
   }
   const p = prediction
-  const neverSecure = p.firstSecureMs == null && !p.fireNowSecure
-  const secureTone = p.fireNowSecure ? 'ok' : neverSecure ? 'alert' : 'warn'
+  const plan = autoFirePlan(verdicts)
+  const neverSecure = plan.never
+  const secureTone = p.fireNowSecure ? 'ok' : p.firstSecureMs == null ? 'alert' : 'warn'
 
   return (
     <>
@@ -317,13 +328,22 @@ function AiTab({ enabled, prediction, metrics, onArmAutoFire, autoFireArmed, com
           <Metric label="IF FIRED NOW" value={p.fireNowSecure ? 'SECURE' : 'EJECT'} tone={p.fireNowSecure ? 'ok' : 'alert'} />
           <Metric label="PHASE SHARE" value={`${fmt(p.captureProbability, 1)}%`} />
           <Metric label="PEAK |ωz|̂" value={fmt(p.peakWzPred)} unit="rad/s" tone={p.peakWzPred > CAPTURE.wzLimit ? 'alert' : 'default'} />
-          <Metric label="BEST DELAY" value={String(p.optimalLaunchDelayMs)} unit="ms sim" />
+          <Metric label="PINN DELAY" value={String(p.optimalLaunchDelayMs)} unit="ms sim" />
+        </div>
+        <div className="num grid grid-cols-2 gap-x-3 gap-y-0.5 px-3 pb-2 text-[10.5px] text-slate-400">
+          <span>Auto-fire delay (RK4 secure window)</span>
+          <span className="text-right text-slate-100">
+            {!plan.ready ? '—' : plan.never ? 'none in 0–3.2 s' : `${plan.delayMs} ms`}
+          </span>
+          <span>PINN estimate (test MAE 703 ms)</span>
+          <span className="text-right">{p.firstSecureMs == null ? (p.fireNowSecure ? '0 ms' : 'none') : `${p.firstSecureMs} ms`}</span>
         </div>
         <div className="flex items-center gap-2 px-3 pb-3">
           <button
             type="button"
             onClick={onArmAutoFire}
-            disabled={!p || autoFireArmed || neverSecure}
+            disabled={!plan.ready || autoFireArmed || neverSecure}
+            aria-label={autoFireArmed ? 'Auto-fire armed' : 'Arm auto-fire at the first numerically secure delay'}
             className={cx(
               'num h-8 flex-1 rounded-[3px] border text-[11px] font-medium tracking-wide transition-colors',
               autoFireArmed
@@ -334,9 +354,11 @@ function AiTab({ enabled, prediction, metrics, onArmAutoFire, autoFireArmed, com
           >
             {autoFireArmed
               ? 'AUTO-FIRE ARMED'
-              : neverSecure
-                ? 'No secure phase — cannot arm'
-                : `Arm auto-fire · +${p.optimalLaunchDelayMs} ms`}
+              : !plan.ready
+                ? 'Waiting for verdicts…'
+                : neverSecure
+                  ? 'No secure window in 0–3.2 s — cannot arm'
+                  : `Arm auto-fire · +${plan.delayMs} ms (RK4 window)`}
           </button>
         </div>
       </Section>
@@ -375,9 +397,10 @@ export default function TelemetryHUD({
   onArmAutoFire,
   autoFireArmed = false,
   commanded,
+  verdicts = null,
   onScroll,
 }) {
-  const [tab, setTab] = useState('ai')
+  const [tab, setTab] = useState('verdicts')
   return (
     <aside className="flex h-full min-h-0 flex-col border-l border-ink-700 bg-ink-925">
       <nav className="flex h-9 shrink-0 items-stretch border-b border-ink-700 px-1" role="tablist">
@@ -403,6 +426,7 @@ export default function TelemetryHUD({
         className={cx('min-h-0 flex-1 overscroll-contain', tab === 'ros' ? 'flex flex-col' : 'scroll-thin overflow-y-auto')}
         onScroll={onScroll}
       >
+        {tab === 'verdicts' && <VerdictsPanel verdicts={verdicts} />}
         {tab === 'ai' && (
           <AiTab
             enabled={aiEnabled}
@@ -411,6 +435,7 @@ export default function TelemetryHUD({
             onArmAutoFire={onArmAutoFire}
             autoFireArmed={autoFireArmed}
             commanded={commanded}
+            verdicts={verdicts}
           />
         )}
         {tab === 'state' && <StateTab snapshot={snapshot} decision={decision} />}

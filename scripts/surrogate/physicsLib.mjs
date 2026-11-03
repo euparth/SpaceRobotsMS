@@ -18,28 +18,10 @@ const { NetSolver } = await import(join(root, 'src/physics/netSolver.js'))
 export const { CAPTURE, CUBESAT, NET, STRAIN_BANDS, MAX_RATE, PRESETS } = constants
 export const { IX, IY, IZ, rk4Step, kineticEnergy, quatToMatrix, predictOutcome } = rigid
 
-export const H = 1 / 3000
-export const FLIGHT_TIME = NET.standoff / NET.approachSpeed // ~0.3 s
-export const CONTACT_WINDOW = CAPTURE.decisionWindow
-export const HORIZON = 3.2
-export const WZ_LIMIT = CAPTURE.wzLimit
-
-export function y0(wx, wy, wz) {
-  return new Float64Array([wx, wy, wz, 1, 0, 0, 0])
-}
-
-/** Peak |ωz| in [delay+flight, delay+flight+window] after torque-free tumble. */
-export function peakWzInContactWindow(wx, wy, wz, delay = 0) {
-  const y = y0(wx, wy, wz)
-  const wait = delay + FLIGHT_TIME
-  for (let t = 0; t < wait - 1e-12; t += H) rk4Step(y, H, 0)
-  let peak = Math.abs(y[2])
-  for (let t = 0; t < CONTACT_WINDOW - 1e-12; t += H) {
-    rk4Step(y, H, 0)
-    peak = Math.max(peak, Math.abs(y[2]))
-  }
-  return peak
-}
+// Label path shared with the worker and the in-browser Monte Carlo (release 1.0): same code,
+// moved to src/physics/captureLabel.js. H = 1/3000, FLIGHT_TIME = 0.3 s, CONTACT_WINDOW = 0.25 s.
+export { H, FLIGHT_TIME, CONTACT_WINDOW, HORIZON, WZ_LIMIT, y0, peakWzInContactWindow } from '../../src/physics/captureLabel.js'
+import { H, FLIGHT_TIME, CONTACT_WINDOW, HORIZON, WZ_LIMIT, y0, peakWzInContactWindow } from '../../src/physics/captureLabel.js'
 
 export function secureIfFiredAt(wx, wy, wz, delay = 0) {
   return peakWzInContactWindow(wx, wy, wz, delay) <= WZ_LIMIT

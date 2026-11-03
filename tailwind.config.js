@@ -19,10 +19,6 @@ export default {
           500: '#3b4756',
         },
       },
-      screens: {
-        // Phones held sideways: too short for the stacked header + 3D view + sheet
-        short: { raw: '(max-height: 500px) and (orientation: landscape)' },
-      },
       keyframes: {
         blink: {
           '0%, 100%': { opacity: '1' },
@@ -34,5 +30,9 @@ export default {
       },
     },
   },
-  plugins: [],
+  plugins: [
+    // `short:` — phones held sideways (too short for header + 3D view + sheet). Added as a variant
+    // rather than a raw screen so Tailwind's arbitrary min-[…]/max-[…] variants keep working.
+    ({ addVariant }) => addVariant('short', '@media (max-height: 500px) and (orientation: landscape)'),
+  ],
 }

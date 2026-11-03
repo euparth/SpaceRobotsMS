@@ -3,7 +3,8 @@ import { CAPTURE, MAX_RATE, PRESETS } from '../physics/constants.js'
 import { predictOutcome, principalAxes } from '../physics/rigidBody.js'
 import { PHASE } from '../physics/stateLayout.js'
 import { Button, Metric, cx, fmt } from './ui.jsx'
-import { WzChart } from './TelemetryHUD.jsx'
+import { WzChart, autoFirePlan } from './TelemetryHUD.jsx'
+import VerdictsPanel from './VerdictsPanel.jsx'
 
 const AXES = principalAxes()
 
@@ -92,6 +93,7 @@ export default function MobilePredict({
   metrics,
   onArmAutoFire,
   autoFireArmed,
+  verdicts,
   tourHighlight,
   onScroll,
 }) {
@@ -99,6 +101,7 @@ export default function MobilePredict({
   const phase = snapshot?.phase ?? PHASE.IDLE
   const armed = phase === PHASE.IDLE
   const polhode = predictOutcome(commanded)
+  const plan = autoFirePlan(verdicts)
 
   const activeId = PRESETS.find((p) => p.w.every((x, i) => Math.abs(x - commanded[i]) < 1e-6))?.id
 
@@ -108,11 +111,7 @@ export default function MobilePredict({
     api.setSpin(next)
   }
 
-  const canArm =
-    aiEnabled &&
-    prediction &&
-    !autoFireArmed &&
-    !(prediction.firstSecureMs == null && !prediction.fireNowSecure)
+  const canArm = plan.ready && !plan.never && !autoFireArmed
 
   return (
     <aside className="flex h-full min-h-0 flex-col border-r border-ink-700 bg-ink-925 lg:hidden">
@@ -155,6 +154,8 @@ export default function MobilePredict({
             })}
           </div>
         </div>
+
+        <VerdictsPanel verdicts={verdicts} compact />
 
         <div className="border-b border-ink-700 px-3 py-2.5">
           <VerdictBanner prediction={aiEnabled ? prediction : null} />
@@ -245,22 +246,25 @@ export default function MobilePredict({
             )}
             disabled={!canArm || !armed}
             onClick={() => {
-              if (prediction?.fireNowSecure) api.launch()
+              if (plan.delayMs === 0) api.launch()
               else onArmAutoFire()
             }}
           >
             {autoFireArmed
               ? 'AUTO-FIRE ARMED'
-              : !aiEnabled
-                ? 'Enable AI to arm auto-fire'
-                : !prediction
-                  ? 'Waiting for prediction…'
-                  : prediction.firstSecureMs == null && !prediction.fireNowSecure
-                    ? 'No secure phase — cannot arm'
-                    : prediction.fireNowSecure
-                      ? 'Launch now — AI: secure'
-                      : `Arm auto-fire · +${prediction.optimalLaunchDelayMs} ms`}
+              : !plan.ready
+                ? 'Waiting for verdicts…'
+                : plan.never
+                  ? 'No secure window in 0–3.2 s — cannot arm'
+                  : plan.delayMs === 0
+                    ? 'Launch now — RK4 window secure'
+                    : `Arm auto-fire · +${plan.delayMs} ms (RK4 window)`}
           </Button>
+          {aiEnabled && prediction && (
+            <p className="num mt-1.5 text-[10px] text-slate-500">
+              PINN estimate (test MAE 703 ms): {prediction.firstSecureMs == null ? (prediction.fireNowSecure ? '0 ms' : 'none') : `${prediction.firstSecureMs} ms`}
+            </p>
+          )}
         </div>
       </div>
     </aside>

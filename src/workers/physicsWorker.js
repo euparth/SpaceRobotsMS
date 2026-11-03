@@ -1,6 +1,8 @@
 import { CAPTURE, CUBESAT, MAX_RATE, NET, SOLVER } from '../physics/constants.js'
+import { computeVerdicts } from '../physics/captureLabel.js'
 import { NetSolver } from '../physics/netSolver.js'
 import { IX, IY, IZ, kineticEnergy, nutationAngle, quatToMatrix, rk4Step } from '../physics/rigidBody.js'
+import { runSurrogateInference } from '../surrogate/inference.js'
 import {
   F,
   NODE_POSITION_OFFSET,
@@ -38,10 +40,44 @@ const sim = {
   peakWz: 0,
   substeps: 0,
   launchAt: null, // sim-time absolute; fire when IDLE and t >= launchAt
+  verdicts: null, // rule / envelope / numeric / pinn for the commanded ω0 (recomputed on set_spin and reset)
+  solver: null, // live rollout verdict after decide() or miss()
 }
 
 const clamp = (v, lo, hi) => Math.min(hi, Math.max(lo, v))
 const f3 = (v) => v.toFixed(3)
+
+/**
+ * Four verdicts for the commanded ω0 (same code paths as the scripts):
+ *   rule     |ωz0| ≤ 3                                   static threshold
+ *   envelope closed-form max |ωz| ≤ 3                    src/physics/envelope.js
+ *   pinn     runSurrogateInference(ω0).fireNowSecure     src/surrogate/inference.js, committed weights
+ *   numeric  peakWzInContactWindow(ω0, 0) ≤ 3            dataset label path, plus the secure window
+ * The solver verdict is attached after a live rollout reaches decide() or miss().
+ */
+function postVerdicts() {
+  self.postMessage({ type: 'verdicts', verdicts: sim.verdicts, solver: sim.solver })
+}
+
+function recomputeVerdicts() {
+  const w0 = [commanded[0], commanded[1], commanded[2]]
+  const t0 = performance.now()
+  const v = computeVerdicts(w0)
+  const tPhysics = performance.now() - t0
+  const p = runSurrogateInference(w0[0], w0[1], w0[2], { includeTrace: false })
+  v.pinn = {
+    verdict: p.fireNowSecure ? 'SECURE' : 'EJECT',
+    peak: p.peakWzPred,
+    optimalLaunchDelayMs: p.optimalLaunchDelayMs,
+    firstSecureMs: p.firstSecureMs,
+    captureProbability: p.captureProbability,
+    inferenceLatencyMs: p.inferenceLatencyMs,
+  }
+  v.computeMs = { physics: tPhysics, pinn: p.inferenceLatencyMs }
+  sim.verdicts = v
+  sim.solver = null
+  postVerdicts()
+}
 
 function syncBody() {
   quatToMatrix(y[3], y[4], y[5], y[6], body.R)
@@ -126,9 +162,12 @@ function reset() {
   sim.energyAbsorbed = 0
   sim.peakWz = 0
   sim.launchAt = null
+  sim.tLaunch = 0
+  sim.tContact = 0
   captureReference()
   self.postMessage({ type: 'reset' })
   postDecision(null)
+  recomputeVerdicts()
   emit('info', 'SIM RESET · target re-initialised at LVLH origin, net stowed')
 }
 
@@ -251,6 +290,15 @@ function decide() {
     postDecision({ status: 'SECURED', t: sim.t, peakWz: peak, limit, excessEnergy: 0, ejectionSpeed: 0, reason })
     emit('ok', `CAPTURE LAW SATISFIED · ${reason}`)
   }
+  sim.solver = {
+    verdict: peak > limit ? 'EJECT' : 'SECURE',
+    peakWz: peak,
+    tLaunch: sim.tLaunch,
+    tContact: sim.tContact,
+    tDecision: sim.t,
+    launchDelayMs: Math.round(sim.tLaunch * 1000),
+  }
+  postVerdicts()
 }
 
 function miss() {
@@ -258,6 +306,8 @@ function miss() {
   const reason = `no contact within ${CAPTURE.missTimeout.toFixed(1)} s of flight`
   postDecision({ status: 'MISS', t: sim.t, peakWz: 0, limit: CAPTURE.wzLimit, excessEnergy: 0, ejectionSpeed: 0, reason })
   emit('error', `CAPTURE MISS · ${reason}`)
+  sim.solver = { verdict: 'MISS', peakWz: null, tLaunch: sim.tLaunch, tContact: null, tDecision: sim.t, launchDelayMs: Math.round(sim.tLaunch * 1000) }
+  postVerdicts()
 }
 
 function substep(h) {
@@ -353,6 +403,8 @@ function publish(solverMs, tickHz) {
   buf[F.PAUSED] = sim.paused ? 1 : 0
   buf[F.SUBSTEPS] = sim.substeps
   buf[F.ETA] = net.wovenEfficiency
+  buf[F.T_LAUNCH] = sim.phase === PHASE.IDLE ? NaN : sim.tLaunch
+  buf[F.T_CONTACT] = sim.phase === PHASE.IDLE || sim.phase === PHASE.FLIGHT || !(sim.tContact > 0) ? NaN : sim.tContact
   buf.set(net.pos, NODE_POSITION_OFFSET)
   buf.set(net.nodeStrain, NODE_STRAIN_OFFSET)
   self.postMessage({ type: 'state', buffer: buf.buffer }, [buf.buffer])
@@ -368,6 +420,7 @@ self.onmessage = ({ data }) => {
         y[1] = w[1]
         y[2] = w[2]
         captureReference()
+        recomputeVerdicts()
       } else {
         emit('warn', 'ω₀ staged — net deployed, applies on reset')
       }
@@ -410,6 +463,7 @@ self.onmessage = ({ data }) => {
 }
 
 captureReference()
+recomputeVerdicts()
 
 let last = performance.now()
 let tickHz = SOLVER.publishHz

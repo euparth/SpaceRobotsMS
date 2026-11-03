@@ -237,10 +237,12 @@ export function executeCommand(input, ctx) {
         if (!ai.enabled) return warn('AI predictor is OFF — ai toggle first')
         const p = ai.prediction
         if (!p) return warn('no prediction yet')
+        const n = sim.getVerdicts?.()?.numeric
         const okArm = ai.armAutoFire()
+        const delay = n ? (n.fireNowSecure ? 0 : n.firstSecureDelayMs) : null
         return okArm
-          ? ok(`auto-fire armed · delay ${p.optimalLaunchDelayMs} ms sim · ${p.statusText}`)
-          : warn('could not arm auto-fire (idle?)')
+          ? ok(`auto-fire armed · delay ${delay} ms sim (RK4 secure window) · PINN estimate ${p.firstSecureMs ?? (p.fireNowSecure ? 0 : 'none')} ms (test MAE 703 ms)`)
+          : warn('could not arm auto-fire (no secure window in 0–3.2 s, or not idle)')
       }
       if (sub === 'status') {
         const p = ai.prediction

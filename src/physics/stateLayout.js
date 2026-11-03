@@ -64,6 +64,8 @@ export const F = Object.freeze({
   PAUSED: 33,
   SUBSTEPS: 34,
   ETA: 35,
+  T_LAUNCH: 36, // NaN while IDLE
+  T_CONTACT: 37, // NaN before first contact
 })
 
 export const HEADER_LENGTH = 40

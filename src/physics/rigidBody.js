@@ -1,6 +1,8 @@
 import { CAPTURE, CUBESAT } from './constants.js'
+import { feasibleBranch } from './envelope.js'
 
 export const [IX, IY, IZ] = CUBESAT.inertia
+export const INERTIA = CUBESAT.inertia
 
 /**
  * State y = [ωx, ωy, ωz, q0, q1, q2, q3] with q the scalar-first body→LVLH quaternion.
@@ -88,17 +90,12 @@ export function nutationAngle(wx, wy, wz) {
  */
 export function polhodeEnvelope(wx, wy, wz) {
   const twoT = IX * wx * wx + IY * wy * wy + IZ * wz * wz
-  const h2 = (IX * wx) ** 2 + (IY * wy) ** 2 + (IZ * wz) ** 2
   const current = Math.abs(wz)
   if (twoT < 1e-12) return { peak: 0, floor: 0, constant: true }
   if (Math.hypot(wx, wy) < 1e-9) return { peak: current, floor: current, constant: true }
-  let peak = current
-  for (const Ia of [IX, IY]) {
-    const s = (h2 - Ia * twoT) / (IZ * (IZ - Ia))
-    const u = (twoT - IZ * s) / Ia
-    if (s >= 0 && u >= -1e-12) peak = Math.max(peak, Math.sqrt(s))
-  }
-  return { peak, floor: 0, constant: false }
+  // Closed form lives in envelope.js (single source); same arithmetic as before 1.0.
+  const { max, branch } = feasibleBranch(INERTIA, [wx, wy, wz])
+  return { peak: max, floor: 0, constant: false, branch }
 }
 
 export function predictOutcome(w, limit = CAPTURE.wzLimit) {
