@@ -5,11 +5,13 @@ import { IZ, principalAxes } from '../physics/rigidBody.js'
 import { PHASE, STATE_LENGTH } from '../physics/stateLayout.js'
 import TopicMonitor from './TopicMonitor.jsx'
 import VerdictsPanel from './VerdictsPanel.jsx'
+import MonteCarloPanel from './MonteCarloPanel.jsx'
 import { Label, Metric, Readout, Section, cx, fmt } from './ui.jsx'
 
 const TABS = Object.freeze([
   { id: 'verdicts', label: 'Verdicts' },
   { id: 'ai', label: 'PINN' },
+  { id: 'mc', label: 'MC', title: 'Monte Carlo' },
   { id: 'state', label: 'State' },
   { id: 'ros', label: 'ROS 2' },
   { id: 'model', label: 'Model' },
@@ -410,9 +412,11 @@ export default function TelemetryHUD({
             type="button"
             role="tab"
             aria-selected={tab === t.id}
+            aria-label={t.title}
+            title={t.title}
             onClick={() => setTab(t.id)}
             className={cx(
-              'relative px-2.5 text-[11.5px] font-medium tracking-[0.02em] transition-colors sm:px-3',
+              'relative whitespace-nowrap px-2.5 text-[11.5px] font-medium tracking-[0.02em] transition-colors sm:px-3',
               tab === t.id ? 'text-slate-100' : 'text-slate-500 hover:text-slate-300',
             )}
           >
@@ -427,6 +431,7 @@ export default function TelemetryHUD({
         onScroll={onScroll}
       >
         {tab === 'verdicts' && <VerdictsPanel verdicts={verdicts} />}
+        {tab === 'mc' && <MonteCarloPanel />}
         {tab === 'ai' && (
           <AiTab
             enabled={aiEnabled}
