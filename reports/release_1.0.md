@@ -332,9 +332,9 @@ vercel --scope team_mIxmsWgggY2eGiFYVESFvzQ2 deploy --yes
 
 | Item | Value |
 | --- | --- |
-| Deployment id | `dpl_5jUFfyvhRy7uaaEh5BKSfUrEL87s` |
-| Preview URL | https://space-debris-8by0qw6vm-euparth-9805s-projects.vercel.app |
-| Inspect | https://vercel.com/euparth-9805s-projects/space-debris-sim/5jUFfyvhRy7uaaEh5BKSfUrEL87s |
+| Deployment id | `dpl_DnKiNJDeSHviRqruoExtVESuYtmS` (earlier READY deploy `dpl_5jUFfyvhRy7uaaEh5BKSfUrEL87s`) |
+| Preview URL | https://space-debris-c1k2ilvo2-euparth-9805s-projects.vercel.app |
+| Inspect | https://vercel.com/euparth-9805s-projects/space-debris-sim/DnKiNJDeSHviRqruoExtVESuYtmS |
 | readyState | READY |
 | `/` and `/methods` via `vercel curl` | HTTP/2 200 |
 | Deployment Protection | Vercel Authentication (preview is not public without login or a bypass token) |
