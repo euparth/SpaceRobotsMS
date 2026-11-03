@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
-import { CAPTURE, PRESETS, STRAIN_BANDS } from '../physics/constants.js'
+import { CAPTURE, UI_PRESETS as PRESETS, STRAIN_BANDS } from '../physics/constants.js'
 import { predictOutcome } from '../physics/rigidBody.js'
 import { PHASE, PHASE_LABEL } from '../physics/stateLayout.js'
 import { useSurrogate } from '../hooks/useSurrogate.js'
@@ -12,12 +12,17 @@ import Controls from './Controls.jsx'
 import GuidedTour, { TOUR_STEPS, shouldShowTourOnFirstVisit } from './GuidedTour.jsx'
 import InertiaTensor from './InertiaTensor.jsx'
 import MobilePredict from './MobilePredict.jsx'
+import PolhodeView from './PolhodeView.jsx'
 import TelemetryHUD from './TelemetryHUD.jsx'
 import TimeSeriesChart from './TimeSeriesChart.jsx'
 import { Button, Kbd, Label, Led, Segmented, cx, fmt } from './ui.jsx'
 
-const VIEW_IDS = Object.keys(VIEW_PRESETS)
-const VIEW_OPTIONS = VIEW_IDS.map((id) => ({ id, label: VIEW_PRESETS[id].label }))
+const CANVAS_VIEW_IDS = Object.keys(VIEW_PRESETS)
+const VIEW_IDS = [...CANVAS_VIEW_IDS, 'polhode']
+const VIEW_OPTIONS = [
+  ...CANVAS_VIEW_IDS.map((id) => ({ id, label: VIEW_PRESETS[id].label })),
+  { id: 'polhode', label: 'POLHODE', title: 'Energy ellipsoid ∩ momentum sphere with the live H(t) point' },
+]
 const LAYER_OPTIONS = [
   { id: 'vectors', label: 'H · ω', title: 'Angular momentum, body-rate vector and herpolhode trace' },
   { id: 'axes', label: 'AXES', title: 'Body frame triad' },
@@ -40,6 +45,7 @@ const RATE_THRESHOLDS = Object.freeze([
   { value: CAPTURE.wzLimit, label: `+${CAPTURE.wzLimit.toFixed(1)} twist-out`, color: '#ef4444' },
   { value: -CAPTURE.wzLimit, label: '', color: '#ef4444' },
 ])
+const RATE_FILL_BAND = Object.freeze({ lo: -CAPTURE.wzLimit, hi: CAPTURE.wzLimit, color: 'rgba(52, 211, 153, 0.05)' })
 const NUTATION_SERIES = Object.freeze([{ key: 'nutation', label: 'θ = ∠(H, ẑ_b)', color: '#e2e8f0' }])
 const NUTATION_RANGE = Object.freeze([0, 180])
 const QUATERNION_SERIES = Object.freeze([
@@ -451,7 +457,7 @@ export default function GNCWorkbench({ sim }) {
         e.preventDefault()
         if (snap?.paused) api.resume()
         else api.pause()
-      } else if (/^[1-4]$/.test(e.key)) {
+      } else if (/^[1-5]$/.test(e.key)) {
         if ((snap?.phase ?? PHASE.IDLE) === PHASE.IDLE) api.applyPreset(PRESETS[Number(e.key) - 1].id)
       } else if (e.key === 'v' || e.key === 'V') {
         setView((v) => VIEW_IDS[(VIEW_IDS.indexOf(v) + 1) % VIEW_IDS.length])
@@ -460,6 +466,32 @@ export default function GNCWorkbench({ sim }) {
     window.addEventListener('keydown', onKey)
     return () => window.removeEventListener('keydown', onKey)
   }, [api, isTourActive])
+
+  // RATES plot: closed-form ωz,max as dashed lines; net flight and contact window shaded (2b)
+  const envMax = verdicts?.envelope?.max
+  const rateThresholds = useMemo(() => {
+    if (!Number.isFinite(envMax) || envMax < 1e-6) return RATE_THRESHOLDS
+    return [
+      ...RATE_THRESHOLDS,
+      { value: envMax, label: `ωz,max ${envMax.toFixed(3)} closed-form`, color: '#22d3ee' },
+      { value: -envMax, label: '', color: '#22d3ee' },
+    ]
+  }, [envMax])
+  const rateBandsRef = useRef([])
+  rateBandsRef.current = [
+    { from: snapshot?.tLaunch, to: snapshot?.tContact, color: 'rgba(56, 189, 248, 0.10)', label: 'net flight', labelColor: '#7dd3fc' },
+    {
+      from: snapshot?.tContact,
+      to: Number.isFinite(snapshot?.tContact) ? snapshot.tContact + CAPTURE.decisionWindow : NaN,
+      color: 'rgba(251, 191, 36, 0.12)',
+      label: 'contact window',
+      labelColor: '#fcd34d',
+    },
+  ]
+  const dynamicsProps =
+    plot === 'rates'
+      ? { ...DYNAMICS_PLOTS.rates.props, thresholds: rateThresholds, bandsRef: rateBandsRef, fillBand: RATE_FILL_BAND }
+      : DYNAMICS_PLOTS[plot].props
 
   const activeLayers = useMemo(() => Object.keys(layers).filter((k) => layers[k]), [layers])
   const toggleLayer = useCallback((id) => {
@@ -519,13 +551,17 @@ export default function GNCWorkbench({ sim }) {
                 : 'h-[42dvh] min-h-[240px] short:min-h-[120px]',
           )}
         >
-          <Canvas3D
-            stateRef={api.stateRef}
-            view={view}
-            layers={layers}
-            tourHighlight={tourHighlight}
-            aiRef={ai.predictionRef}
-          />
+          {view === 'polhode' ? (
+            <PolhodeView stateRef={api.stateRef} commanded={commanded} verdicts={verdicts} />
+          ) : (
+            <Canvas3D
+              stateRef={api.stateRef}
+              view={view}
+              layers={layers}
+              tourHighlight={tourHighlight}
+              aiRef={ai.predictionRef}
+            />
+          )}
           {/* Tap the peek of the viewport to drop the sheet and show the 3D view again */}
           {sheetLifted && !panelsCollapsed && (
             <button
@@ -539,8 +575,10 @@ export default function GNCWorkbench({ sim }) {
           <div className="pointer-events-none absolute inset-0 z-10">
             <div className="absolute left-2 right-2 top-2 flex items-start justify-between gap-2 lg:left-3 lg:right-3 lg:top-3">
               <div className="scroll-thin pointer-events-auto flex min-w-0 items-center gap-2 overflow-x-auto">
-                <Segmented options={VIEW_OPTIONS} value={view} onChange={setView} className="shrink-0" />
-                <Segmented options={LAYER_OPTIONS} value={activeLayers} onChange={toggleLayer} className="hidden shrink-0 md:flex" />
+                <Segmented options={VIEW_OPTIONS} value={view} onChange={setView} className="shrink-0" ariaLabel="Viewport" />
+                {view !== 'polhode' && (
+                  <Segmented options={LAYER_OPTIONS} value={activeLayers} onChange={toggleLayer} className="hidden shrink-0 md:flex" ariaLabel="Viewport layers" />
+                )}
               </div>
               <button
                 type="button"
@@ -556,7 +594,7 @@ export default function GNCWorkbench({ sim }) {
                 tourHighlight === 'step2' && 'ring-2 ring-cyan-400 shadow-[0_0_20px_rgba(34,211,238,0.5)] animate-pulse',
               )}
             >
-              <StressLegend strainMax={snapshot?.strainMax} />
+              {view !== 'polhode' && <StressLegend strainMax={snapshot?.strainMax} />}
             </div>
 
             {ejected && (
@@ -646,7 +684,7 @@ export default function GNCWorkbench({ sim }) {
               hint={DYNAMICS_PLOTS[plot].hint}
               legend={DYNAMICS_PLOTS[plot].series}
             >
-              <TimeSeriesChart key={plot} history={api.history} series={DYNAMICS_PLOTS[plot].series} {...DYNAMICS_PLOTS[plot].props} />
+              <TimeSeriesChart key={plot} history={api.history} series={DYNAMICS_PLOTS[plot].series} {...dynamicsProps} />
             </ChartCard>
           </section>
 

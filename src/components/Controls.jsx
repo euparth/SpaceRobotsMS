@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
-import { CAPTURE, MAX_RATE, NET, PRESETS, SOLVER } from '../physics/constants.js'
+import { CAPTURE, MAX_RATE, NET, UI_PRESETS as PRESETS, SOLVER } from '../physics/constants.js'
 import { NET_MASS, NODE_COUNT } from '../physics/netTopology.js'
 import { predictOutcome, principalAxes } from '../physics/rigidBody.js'
 import { PHASE } from '../physics/stateLayout.js'

@@ -1,0 +1,7 @@
+bisection: wx_exact 2.09364004396234 -> rounded 2.09; omegaZMax(exact) 2.9799999999999995
+S5 w0 [2.09,1,2]
+closed-form max|wz| 2.9771537468964078 branch a=0 2T 4.2213199 H2 1.9379342321
+|3 - max| 0.02284625310359223 within 0.05: true
+rule SECURE envelope SECURE numeric SECURE windowPeakNow 2.4276012357102745 firstSecureDelayMs 0 timeToThreshold null
+pinn fireNowSecure true peakWzPred 2.636970281600952 firstSecureMs 0 captureProbability 29.62962962962963
+coupledImpact one-way: peakWz 2.4176005711025916 eject false tContact 0.28433333333333266 maxStrain 0.04531678694288943

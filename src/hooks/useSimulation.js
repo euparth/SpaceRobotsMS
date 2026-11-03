@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
-import { MAX_RATE, PRESETS } from '../physics/constants.js'
+import { MAX_RATE, UI_PRESETS as PRESETS } from '../physics/constants.js'
 import { NODE_COUNT } from '../physics/netTopology.js'
 import { F, NODE_STRAIN_OFFSET, PHASE, PHASE_LABEL } from '../physics/stateLayout.js'
 import { createTwinTelemetryNode, rosGraph } from '../services/rosTelemetryNode.js'

@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { CAPTURE, MAX_RATE, PRESETS } from '../physics/constants.js'
+import { CAPTURE, MAX_RATE, UI_PRESETS as PRESETS } from '../physics/constants.js'
 import { predictOutcome, principalAxes } from '../physics/rigidBody.js'
 import { PHASE } from '../physics/stateLayout.js'
 import { Button, Metric, cx, fmt } from './ui.jsx'
@@ -13,6 +13,7 @@ const CHIP_NOTE = Object.freeze({
   S2: 'Stable',
   S3: 'High-Z',
   S4: 'Coupled',
+  S5: 'Boundary',
 })
 
 function RateRow({ axis, role, value, disabled, onCommit }) {
@@ -127,7 +128,7 @@ export default function MobilePredict({
             <span className="text-[10px] font-medium uppercase tracking-[0.12em] text-slate-500">Scenario</span>
             <span className="num text-[10px] text-slate-600">tap → AI verdict</span>
           </div>
-          <div className="grid grid-cols-4 gap-1.5" role="group" aria-label="Thesis scenarios">
+          <div className="grid grid-cols-5 gap-1.5" role="group" aria-label="Scenario presets">
             {PRESETS.map((preset) => {
               const active = preset.id === activeId
               const isS3 = preset.id === 'S3' && tourHighlight === 'step3'

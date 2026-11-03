@@ -127,9 +127,13 @@ export function Kbd({ children, className }) {
   )
 }
 
-export function Segmented({ options, value, onChange, className }) {
+export function Segmented({ options, value, onChange, className, ariaLabel }) {
   return (
-    <div className={cx('flex h-7 items-stretch rounded-[3px] border border-ink-600 bg-ink-950/80 p-[2px] backdrop-blur', className)}>
+    <div
+      role="group"
+      aria-label={ariaLabel}
+      className={cx('flex h-7 items-stretch rounded-[3px] border border-ink-600 bg-ink-950/80 p-[2px] backdrop-blur', className)}
+    >
       {options.map((opt) => {
         const active = Array.isArray(value) ? value.includes(opt.id) : value === opt.id
         return (
@@ -137,6 +141,8 @@ export function Segmented({ options, value, onChange, className }) {
             key={opt.id}
             type="button"
             title={opt.title}
+            aria-pressed={active}
+            aria-label={opt.title ? `${opt.label}: ${opt.title}` : undefined}
             onClick={() => onChange(opt.id)}
             className={cx(
               'num rounded-[2px] px-2 text-[10.5px] tracking-[0.06em] transition-colors',

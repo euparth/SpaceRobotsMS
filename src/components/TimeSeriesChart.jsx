@@ -17,7 +17,12 @@ function formatTick(v, step) {
   return v.toFixed(digits)
 }
 
-function TimeSeriesChart({ history, series, thresholds = [], windowSec = 6, symmetric = false, fixedRange }) {
+/**
+ * @param bandsRef   optional ref; .current = [{ from, to, color, label }] time intervals shaded behind the series
+ *                   (read on every draw so the parent can update it without re-mounting the chart)
+ * @param fillBand   optional { lo, hi, color } value band shaded on the left axis
+ */
+function TimeSeriesChart({ history, series, thresholds = [], windowSec = 6, symmetric = false, fixedRange, bandsRef, fillBand }) {
   const wrapRef = useRef(null)
   const canvasRef = useRef(null)
 
@@ -108,6 +113,29 @@ function TimeSeriesChart({ history, series, thresholds = [], windowSec = 6, symm
       const right = hasRight ? range('right', tStart) : null
       const x = (t) => padL + ((t - tStart) / span) * pw
       const yOf = (v, [lo, hi]) => padT + ph - ((v - lo) / (hi - lo)) * ph
+
+      if (fillBand) {
+        const y1 = Math.max(padT, Math.min(padT + ph, yOf(fillBand.hi, left)))
+        const y2 = Math.max(padT, Math.min(padT + ph, yOf(fillBand.lo, left)))
+        ctx.fillStyle = fillBand.color
+        ctx.fillRect(padL, y1, pw, Math.max(0, y2 - y1))
+      }
+      const bands = bandsRef?.current ?? []
+      for (const b of bands) {
+        if (!Number.isFinite(b.from)) continue
+        const to = Number.isFinite(b.to) ? b.to : tEnd
+        if (to < tStart || b.from > tEnd) continue
+        const x1 = Math.max(padL, x(b.from))
+        const x2 = Math.min(padL + pw, x(to))
+        ctx.fillStyle = b.color
+        ctx.fillRect(x1, padT, Math.max(1, x2 - x1), ph)
+        if (b.label && x2 - x1 > 30) {
+          ctx.fillStyle = b.labelColor ?? AXIS_TEXT
+          ctx.textAlign = 'left'
+          ctx.textBaseline = 'top'
+          ctx.fillText(b.label, x1 + 3, padT + 3)
+        }
+      }
 
       ctx.strokeStyle = GRID
       ctx.lineWidth = 1
@@ -221,7 +249,7 @@ function TimeSeriesChart({ history, series, thresholds = [], windowSec = 6, symm
       cancelAnimationFrame(raf)
       observer.disconnect()
     }
-  }, [history, series, thresholds, windowSec, symmetric, fixedRange])
+  }, [history, series, thresholds, windowSec, symmetric, fixedRange, bandsRef, fillBand])
 
   return (
     <div ref={wrapRef} className="absolute inset-0">

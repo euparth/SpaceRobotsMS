@@ -1,4 +1,4 @@
-import { CAPTURE, PRESETS } from '../physics/constants.js'
+import { CAPTURE, UI_PRESETS as PRESETS } from '../physics/constants.js'
 import { predictOutcome } from '../physics/rigidBody.js'
 import { CAPTURE_STATUS, PHASE } from '../physics/stateLayout.js'
 import { compactMessage } from './messageFormat.js'
@@ -6,7 +6,7 @@ import { compactMessage } from './messageFormat.js'
 export const COMMANDS = Object.freeze([
   { name: 'help', usage: 'help', summary: 'List commands' },
   { name: 'set_spin', usage: 'set_spin [--x n] [--y n] [--z n]', summary: 'Command initial body rates ω₀ [rad/s, 0–5]' },
-  { name: 'preset', usage: 'preset <S1|S2|S3|S4>', summary: 'Load a thesis scenario' },
+  { name: 'preset', usage: 'preset <S1|S2|S3|S4|S5>', summary: 'Load a thesis scenario' },
   { name: 'launch_net', usage: 'launch_net', summary: 'Fire the Kevlar 49 net at 10.0 m/s' },
   { name: 'reset', usage: 'reset', summary: 'Re-initialise target and stow net' },
   { name: 'pause', usage: 'pause', summary: 'Freeze the physics worker' },
@@ -125,7 +125,7 @@ export function executeCommand(input, ctx) {
         lines: [
           line('GNC workbench CLI · commands', 'dim'),
           ...COMMANDS.map((c) => line(`  ${c.usage.padEnd(44)} ${c.summary}`)),
-          line('keys: L launch · R reset · Space pause · 1–4 presets · / or ` toggle CLI · ↑↓ history · Tab complete', 'dim'),
+          line('keys: L launch · R reset · Space pause · 1–5 presets · / or ` toggle CLI · ↑↓ history · Tab complete', 'dim'),
         ],
       }
     case 'clear':
