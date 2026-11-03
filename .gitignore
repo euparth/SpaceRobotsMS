@@ -3,7 +3,12 @@ dist
 .DS_Store
 *.local
 .vercel
-scripts/surrogate/data/
+# Large generated binaries stay local; capture.json is tracked so CI and clean clones
+# can run the Monte Carlo parity test without regenerating the full dataset.
+scripts/surrogate/data/*
+!scripts/surrogate/data/capture.json
+!scripts/surrogate/data/.gitkeep
+scripts/surrogate/data/priors/
 
 # Playwright
 test-results/
