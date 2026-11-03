@@ -7,6 +7,7 @@
     "dev": "vite",
     "build": "vite build",
     "preview": "vite preview",
+    "test": "node --test tests/",
     "check:physics": "node scripts/physics-check.mjs",
     "gen:surrogate": "node scripts/surrogate/genData.mjs",
     "train:surrogate": "node scripts/surrogate/train.mjs",

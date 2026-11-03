@@ -1,0 +1,34 @@
+
+> space-debris-capture-sim@1.0.0 test
+> node --test tests/
+
+TAP version 13
+# Subtest: 1a: |H| and T relative drift over 10 s at H stay below 1e-12
+ok 1 - 1a: |H| and T relative drift over 10 s at H stay below 1e-12
+  ---
+  duration_ms: 30.652417
+  ...
+# Subtest: 1b: RK4 error vs H/8 reference is at round-off for h<=H and decreases ~4th order for coarse h
+ok 2 - 1b: RK4 error vs H/8 reference is at round-off for h<=H and decreases ~4th order for coarse h
+  ---
+  duration_ms: 9.764833
+  ...
+# Subtest: 1c: closed-form max |wz| equals rigidBody.polhodeEnvelope and bounds the numeric 20 s peak
+ok 3 - 1c: closed-form max |wz| equals rigidBody.polhodeEnvelope and bounds the numeric 20 s peak
+  ---
+  duration_ms: 96.874458
+  ...
+# Subtest: 1c: closed-form candidates reject the infeasible branch (polhode does not cross that axis)
+ok 4 - 1c: closed-form candidates reject the infeasible branch (polhode does not cross that axis)
+  ---
+  duration_ms: 0.148375
+  ...
+1..4
+# tests 4
+# suites 0
+# pass 4
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 222.773542
