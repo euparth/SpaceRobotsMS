@@ -3,7 +3,7 @@ import { CAPTURE, MAX_RATE, NET, UI_PRESETS as PRESETS, SOLVER } from '../physic
 import { NET_MASS, NODE_COUNT } from '../physics/netTopology.js'
 import { predictOutcome, principalAxes } from '../physics/rigidBody.js'
 import { PHASE } from '../physics/stateLayout.js'
-import { Button, Kbd, Label, Readout, Section, cx, fmt } from './ui.jsx'
+import { Button, Kbd, Label, Readout, Section, Segmented, cx, fmt } from './ui.jsx'
 
 const AXES = principalAxes()
 
@@ -217,6 +217,67 @@ export default function Controls({ api, commanded, snapshot, onExport, tourHighl
             {paused ? 'Resume integration' : 'Pause integration'}
             <Kbd className="hidden lg:inline-flex">Space</Kbd>
           </Button>
+        </Section>
+
+        <Section
+          title="Net→body coupling"
+          aside={
+            <a
+              href="/methods#two-way"
+              className="rounded-[2px] border border-amber-500/40 px-1.5 text-[9.5px] uppercase tracking-[0.1em] text-amber-300 hover:bg-amber-500/10"
+              title="Two-way coupling is not part of the validated default path. Opens the Methods page, section “Two-way coupling”."
+            >
+              experimental
+            </a>
+          }
+        >
+          <div className="flex flex-col gap-1">
+            <span className="text-[11.5px] text-slate-400">Coupling</span>
+            <Segmented
+              className="w-full [&>button]:flex-1"
+              ariaLabel="Net to body coupling"
+              value={snapshot?.twoWay ? 'two-way' : 'one-way'}
+              onChange={(id) => api.setParam('coupling', id)}
+              options={[
+                { id: 'one-way', label: 'ONE-WAY', title: 'default: the body is an infinite-mass wall for the net' },
+                { id: 'two-way', label: 'TWO-WAY', title: 'experimental: contact reaction applied to the body, one-substep lag' },
+              ]}
+            />
+          </div>
+          <div className="mt-1.5 flex flex-col gap-1">
+            <span className="text-[11.5px] text-slate-400">Drawstring servo at contact</span>
+            <Segmented
+              className="w-full [&>button]:flex-1"
+              ariaLabel="Drawstring servo at contact"
+              value={snapshot?.drawstring === false ? 'off' : 'on'}
+              onChange={(id) => api.setParam('drawstring', id === 'on')}
+              options={[
+                { id: 'on', label: 'ON', title: 'corner spring–damper engages at contact (K 90 N/m, D 9 N·s/m); external force on the net' },
+                { id: 'off', label: 'OFF', title: 'no external force after contact; needed for a closed momentum budget' },
+              ]}
+            />
+          </div>
+          <div className="mt-2 grid grid-cols-2 gap-px bg-ink-700/60">
+            <div className="bg-ink-900 px-2 py-1.5">
+              <Label className="text-[9px]">ΔP_total</Label>
+              <div className="num truncate text-[12px] text-slate-100">
+                {snapshot && Number.isFinite(snapshot.dPTotal) ? snapshot.dPTotal.toExponential(2) : '—'}
+                <span className="ml-1 text-[10px] text-slate-600">N·s</span>
+              </div>
+            </div>
+            <div className="bg-ink-900 px-2 py-1.5">
+              <Label className="text-[9px]">ΔL_total</Label>
+              <div className="num truncate text-[12px] text-slate-100">
+                {snapshot && Number.isFinite(snapshot.dLTotal) ? snapshot.dLTotal.toExponential(2) : '—'}
+                <span className="ml-1 text-[10px] text-slate-600">N·m·s</span>
+              </div>
+            </div>
+          </div>
+          <p className="mt-1.5 hidden text-[10.5px] leading-snug text-slate-500 lg:block">
+            Change since t = t_launch + 0.28 s (flight − 0.02 s), world frame, L about the LVLH origin. One-way and the drawstring both remove momentum
+            from body+net by construction; two-way with the drawstring off closed ΔP to 2.5e-12 N·s and left a ΔL residual of 3.2e-2 N·m·s (≈1 % of |L|) in
+            the November 2026 run. Switching coupling during a run applies on reset.
+          </p>
         </Section>
 
         {/* Full net spec is desktop/reference — on phones it buries S1–S4 and the forecast */}

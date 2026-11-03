@@ -14,7 +14,7 @@ export const COMMANDS = Object.freeze([
   { name: 'time_scale', usage: 'time_scale <0.02–1.0>', summary: 'Sim-time / wall-time ratio' },
   { name: 'predict', usage: 'predict', summary: 'Polhode envelope of |ωz| for ω₀' },
   { name: 'status', usage: 'status', summary: 'Current GNC state vector' },
-  { name: 'set_param', usage: 'set_param --eta <1e-4–0.1>', summary: 'Woven-mesh axial efficiency η' },
+  { name: 'set_param', usage: 'set_param --eta <1e-4–0.1> | --coupling <one-way|two-way> | --drawstring <on|off>', summary: 'Mesh efficiency η, net→body coupling, drawstring servo' },
   { name: 'export_telemetry', usage: 'export_telemetry [--format json|csv]', summary: 'Download the telemetry dataset' },
   { name: 'ros2', usage: 'ros2 topic list|echo|hz|info · node list · bridge', summary: 'ROS 2 graph introspection' },
   { name: 'show_topics', usage: 'show_topics', summary: 'Topic table: type, rate, message count' },
@@ -200,7 +200,17 @@ export function executeCommand(input, ctx) {
       }
     }
     case 'set_param': {
-      if (flags.eta === undefined) return fail('usage: set_param --eta <1e-4–0.1>')
+      if (flags.coupling !== undefined) {
+        if (flags.coupling !== 'one-way' && flags.coupling !== 'two-way') return fail('--coupling takes one-way | two-way')
+        sim.setParam('coupling', flags.coupling)
+        return ok(`net→body coupling ← ${flags.coupling}${flags.coupling === 'two-way' ? ' (experimental; see /methods#two-way)' : ''}`)
+      }
+      if (flags.drawstring !== undefined) {
+        if (flags.drawstring !== 'on' && flags.drawstring !== 'off') return fail('--drawstring takes on | off')
+        sim.setParam('drawstring', flags.drawstring === 'on')
+        return ok(`drawstring servo ← ${flags.drawstring}`)
+      }
+      if (flags.eta === undefined) return fail('usage: set_param --eta <1e-4–0.1> | --coupling <one-way|two-way> | --drawstring <on|off>')
       const v = Number(flags.eta)
       if (!(v >= 1e-4 && v <= 0.1)) return fail('η must be within 1e-4 … 0.1')
       sim.setParam('eta', v)

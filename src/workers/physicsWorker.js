@@ -1,4 +1,5 @@
 import { CAPTURE, CUBESAT, MAX_RATE, NET, SOLVER } from '../physics/constants.js'
+import { budgetDelta, momentumBudget } from '../physics/momentum.js'
 import { computeVerdicts } from '../physics/captureLabel.js'
 import { NetSolver } from '../physics/netSolver.js'
 import { IX, IY, IZ, kineticEnergy, nutationAngle, quatToMatrix, rk4Step } from '../physics/rigidBody.js'
@@ -42,7 +43,15 @@ const sim = {
   launchAt: null, // sim-time absolute; fire when IDLE and t >= launchAt
   verdicts: null, // rule / envelope / numeric / pinn for the commanded ω0 (recomputed on set_spin and reset)
   solver: null, // live rollout verdict after decide() or miss()
+  // PHASE 4 — net→body coupling. 'one-way' is the validated default (body is an infinite-mass wall);
+  // 'two-way' applies the net's contact reaction to the body with the one-substep lag used by
+  // scripts/surrogate/physicsLib.mjs coupledImpactTwoWay(). Drawstring servo on/off at contact.
+  coupling: 'one-way',
+  drawstring: true,
+  momentumBefore: null, // budget snapshot at t = tLaunch + flight − 0.02 s (same instant as the research script)
+  momentum: null, // budgetDelta(before, now), updated every substep after the snapshot
 }
+const tau = new Float64Array(3)
 
 const clamp = (v, lo, hi) => Math.min(hi, Math.max(lo, v))
 const f3 = (v) => v.toFixed(3)
@@ -164,6 +173,9 @@ function reset() {
   sim.launchAt = null
   sim.tLaunch = 0
   sim.tContact = 0
+  sim.momentumBefore = null
+  sim.momentum = null
+  net.twoWay = sim.coupling === 'two-way'
   captureReference()
   self.postMessage({ type: 'reset' })
   postDecision(null)
@@ -297,6 +309,9 @@ function decide() {
     tContact: sim.tContact,
     tDecision: sim.t,
     launchDelayMs: Math.round(sim.tLaunch * 1000),
+    coupling: sim.coupling,
+    drawstring: sim.drawstring,
+    momentum: sim.momentum,
   }
   postVerdicts()
 }
@@ -306,19 +321,53 @@ function miss() {
   const reason = `no contact within ${CAPTURE.missTimeout.toFixed(1)} s of flight`
   postDecision({ status: 'MISS', t: sim.t, peakWz: 0, limit: CAPTURE.wzLimit, excessEnergy: 0, ejectionSpeed: 0, reason })
   emit('error', `CAPTURE MISS · ${reason}`)
-  sim.solver = { verdict: 'MISS', peakWz: null, tLaunch: sim.tLaunch, tContact: null, tDecision: sim.t, launchDelayMs: Math.round(sim.tLaunch * 1000) }
+  sim.solver = {
+    verdict: 'MISS',
+    peakWz: null,
+    tLaunch: sim.tLaunch,
+    tContact: null,
+    tDecision: sim.t,
+    launchDelayMs: Math.round(sim.tLaunch * 1000),
+    coupling: sim.coupling,
+    drawstring: sim.drawstring,
+    momentum: sim.momentum,
+  }
   postVerdicts()
 }
 
 function substep(h) {
   if (sim.damping > 0) sim.energyAbsorbed += 2 * sim.damping * kineticEnergy(y[0], y[1], y[2]) * h
-  rk4Step(y, h, sim.damping)
+  if (net.twoWay) {
+    // reaction accumulated during the previous net step → body-frame torque (zero-order hold over
+    // the four RK4 stages) and a linear impulse, exactly as coupledImpactTwoWay()
+    const R = body.R
+    const Lx = net.reactionAngImpulse[0] / h
+    const Ly = net.reactionAngImpulse[1] / h
+    const Lz = net.reactionAngImpulse[2] / h
+    tau[0] = R[0] * Lx + R[3] * Ly + R[6] * Lz
+    tau[1] = R[1] * Lx + R[4] * Ly + R[7] * Lz
+    tau[2] = R[2] * Lx + R[5] * Ly + R[8] * Lz
+    rk4Step(y, h, sim.damping, tau)
+    const m = CUBESAT.mass
+    body.v[0] += net.reactionImpulse[0] / m
+    body.v[1] += net.reactionImpulse[1] / m
+    body.v[2] += net.reactionImpulse[2] / m
+  } else {
+    rk4Step(y, h, sim.damping)
+  }
   body.p[0] += body.v[0] * h
   body.p[1] += body.v[1] * h
   body.p[2] += body.v[2] * h
   syncBody()
+  if (sim.phase === PHASE.FLIGHT || sim.phase === PHASE.CONTACT) {
+    const tBefore = sim.tLaunch + NET.standoff / NET.approachSpeed - 0.02
+    if (sim.momentumBefore === null && sim.t + 1e-12 >= tBefore) sim.momentumBefore = momentumBudget(y, body, net)
+  }
   net.step(h, body)
   sim.t += h
+  if (sim.momentumBefore !== null && (sim.phase === PHASE.FLIGHT || sim.phase === PHASE.CONTACT)) {
+    sim.momentum = budgetDelta(sim.momentumBefore, momentumBudget(y, body, net, true))
+  }
 
   if (sim.launchAt != null && sim.phase === PHASE.IDLE && sim.t + 1e-12 >= sim.launchAt) {
     launch()
@@ -331,7 +380,7 @@ function substep(h) {
         sim.phase = PHASE.CONTACT
         sim.tContact = sim.t
         sim.peakWz = wz
-        net.drawstring = true
+        net.drawstring = sim.drawstring
         emit('info', `CONTACT · |ωz| ${f3(wz)} rad/s · evaluating instability law over ${CAPTURE.decisionWindow.toFixed(2)} s`)
       } else if (sim.t - sim.tLaunch > CAPTURE.missTimeout) {
         miss()
@@ -405,6 +454,9 @@ function publish(solverMs, tickHz) {
   buf[F.ETA] = net.wovenEfficiency
   buf[F.T_LAUNCH] = sim.phase === PHASE.IDLE ? NaN : sim.tLaunch
   buf[F.T_CONTACT] = sim.phase === PHASE.IDLE || sim.phase === PHASE.FLIGHT || !(sim.tContact > 0) ? NaN : sim.tContact
+  buf[F.DP_TOTAL] = sim.momentum ? sim.momentum.dPTotal : NaN
+  buf[F.DL_TOTAL] = sim.momentum ? sim.momentum.dLTotal : NaN
+  buf[F.COUPLING] = (sim.coupling === 'two-way' ? 1 : 0) + (sim.drawstring ? 2 : 0)
   buf.set(net.pos, NODE_POSITION_OFFSET)
   buf.set(net.nodeStrain, NODE_STRAIN_OFFSET)
   self.postMessage({ type: 'state', buffer: buf.buffer }, [buf.buffer])
@@ -450,6 +502,27 @@ self.onmessage = ({ data }) => {
       if (data.key === 'eta') {
         net.setWovenEfficiency(clamp(Number(data.value), 1e-4, 0.1))
         emit('info', `η_weave ← ${net.wovenEfficiency} · EA_eff ${net.axialStiffness.toFixed(1)} N`)
+      } else if (data.key === 'coupling') {
+        const mode = data.value === 'two-way' ? 'two-way' : 'one-way'
+        if (mode !== sim.coupling) {
+          sim.coupling = mode
+          if (sim.phase === PHASE.IDLE) net.twoWay = mode === 'two-way'
+          emit(
+            'info',
+            mode === 'two-way'
+              ? 'NET→BODY COUPLING ← two-way (experimental) · contact reaction applied to the body, one-substep lag · applies on reset if a run is live'
+              : 'NET→BODY COUPLING ← one-way (default) · body is an infinite-mass wall for the net',
+          )
+          if (sim.phase === PHASE.IDLE) postVerdicts()
+        }
+      } else if (data.key === 'drawstring') {
+        const on = Boolean(data.value)
+        if (on !== sim.drawstring) {
+          sim.drawstring = on
+          if (sim.phase === PHASE.CONTACT || sim.phase === PHASE.CLOSING) net.drawstring = on
+          emit('info', on ? 'DRAWSTRING ← on · corner servo engages at contact (K 90 N/m, D 9 N·s/m)' : 'DRAWSTRING ← off · no external force on the net after contact')
+          if (sim.phase === PHASE.IDLE) postVerdicts()
+        }
       }
       break
     case 'benchmark': {

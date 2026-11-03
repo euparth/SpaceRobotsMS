@@ -43,6 +43,10 @@ export function readSnapshot(b) {
     eta: b[F.ETA],
     tLaunch: b[F.T_LAUNCH],
     tContact: b[F.T_CONTACT],
+    dPTotal: b[F.DP_TOTAL],
+    dLTotal: b[F.DL_TOTAL],
+    twoWay: (b[F.COUPLING] & 1) === 1,
+    drawstring: (b[F.COUPLING] & 2) === 2,
   }
 }
 

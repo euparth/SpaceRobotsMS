@@ -66,9 +66,12 @@ export const F = Object.freeze({
   ETA: 35,
   T_LAUNCH: 36, // NaN while IDLE
   T_CONTACT: 37, // NaN before first contact
+  DP_TOTAL: 38, // |ΔP_total| body+net since t = tLaunch + flight − 0.02 s (N·s); NaN while IDLE
+  DL_TOTAL: 39, // |ΔL_total| (N·m·s) about the world origin; NaN while IDLE
+  COUPLING: 40, // bit0 two-way coupling active, bit1 drawstring enabled
 })
 
-export const HEADER_LENGTH = 40
+export const HEADER_LENGTH = 44
 export const NODE_POSITION_OFFSET = HEADER_LENGTH
 export const NODE_STRAIN_OFFSET = NODE_POSITION_OFFSET + NODE_COUNT * 3
 export const STATE_LENGTH = NODE_STRAIN_OFFSET + NODE_COUNT

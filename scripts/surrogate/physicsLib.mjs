@@ -107,39 +107,9 @@ export function coupledImpact(wx, wy, wz, opts = undefined) {
 }
 
 /** Total linear momentum (kg·m/s) and angular momentum about the world origin (kg·m²/s) of body + net. */
-function momentumBudget(y, body, net) {
-  const R = body.R
-  // body: H_body = R · (I ω), plus p × m v
-  const hx = IX * y[0]
-  const hy = IY * y[1]
-  const hz = IZ * y[2]
-  const m = CUBESAT.mass
-  const P = [m * body.v[0], m * body.v[1], m * body.v[2]]
-  const L = [
-    R[0] * hx + R[1] * hy + R[2] * hz + (body.p[1] * P[2] - body.p[2] * P[1]),
-    R[3] * hx + R[4] * hy + R[5] * hz + (body.p[2] * P[0] - body.p[0] * P[2]),
-    R[6] * hx + R[7] * hy + R[8] * hz + (body.p[0] * P[1] - body.p[1] * P[0]),
-  ]
-  const Pn = [0, 0, 0]
-  const Ln = [0, 0, 0]
-  for (let n = 0; n < net.invMass.length; n++) {
-    const mk = 1 / net.invMass[n]
-    const k = n * 3
-    const x = net.pos[k]
-    const yy = net.pos[k + 1]
-    const z = net.pos[k + 2]
-    const vx = mk * net.vel[k]
-    const vy = mk * net.vel[k + 1]
-    const vz = mk * net.vel[k + 2]
-    Pn[0] += vx
-    Pn[1] += vy
-    Pn[2] += vz
-    Ln[0] += yy * vz - z * vy
-    Ln[1] += z * vx - x * vz
-    Ln[2] += x * vy - yy * vx
-  }
-  return { body: { P, L }, net: { P: Pn, L: Ln }, total: { P: P.map((v, i) => v + Pn[i]), L: L.map((v, i) => v + Ln[i]) } }
-}
+// Momentum budget of body + net: moved unchanged to src/physics/momentum.js (release 1.0)
+const { momentumBudget } = await import(join(root, 'src/physics/momentum.js'))
+export { momentumBudget }
 
 /**
  * Experimental two-way coupling. Same schedule as coupledImpact(); in addition:
