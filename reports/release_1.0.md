@@ -164,7 +164,8 @@ npx playwright test
 
 Measured: 3 passed in 18.7 s (workspace) and 34.6 s (clean clone `/tmp/SpaceRobotsMS-rc1`). Cases: workbench loads with no console errors; S4 cells 2.500 / 4.034 / EJECT peak 3.925 / solver EJECT after launch; Monte Carlo N=100 completes and N=1200 seed 777001 uniform-box shows 731 / 245 / 4; `/methods` does not load `three-*.js`.
 
-GitHub-hosted CI: **NOT MEASURED** (no push in this session).
+GitHub-hosted CI (after `scripts/surrogate/data/capture.json` was tracked): **measured**, run
+https://github.com/euparth/SpaceRobotsMS/actions/runs/41608110911 — `test-build` success, `browser-smoke` success (3 Playwright tests, 42.0 s). First push of `v1.0.0-rc1` / `b27c595` failed with ENOENT on gitignored `capture.json` (run 41607831627); fixed in `55ba005`.
 
 ### 6b Lighthouse (mobile) and bundle
 
@@ -323,7 +324,21 @@ Byte-identical to V Task F / R header. Alternative priors:
 
 ### 7b Deploy preview
 
-**NOT MEASURED.** `vercel` is not installed. The Vercel MCP namespace is `needsAuth`; it was not authenticated in this session. The README live URL `https://space-debris-sim.vercel.app` was not re-fetched as a new preview.
+Measured with Vercel CLI 65.10.0, account `euparth-9805`, scope `team_mIxmsWgggY2eGiFYVESFvzQ2`, project `space-debris-sim` (`prj_n1HuVSHk0yun8JAEQQBlF9DbO33a`):
+
+```bash
+vercel --scope team_mIxmsWgggY2eGiFYVESFvzQ2 deploy --yes
+```
+
+| Item | Value |
+| --- | --- |
+| Deployment id | `dpl_5jUFfyvhRy7uaaEh5BKSfUrEL87s` |
+| Preview URL | https://space-debris-8by0qw6vm-euparth-9805s-projects.vercel.app |
+| Inspect | https://vercel.com/euparth-9805s-projects/space-debris-sim/5jUFfyvhRy7uaaEh5BKSfUrEL87s |
+| readyState | READY |
+| `/` and `/methods` via `vercel curl` | HTTP/2 200 |
+| Deployment Protection | Vercel Authentication (preview is not public without login or a bypass token) |
+| Production URL | NOT MEASURED in this step (`vercel deploy --prod` not run; live README URL remains https://space-debris-sim.vercel.app) |
 
 ### Tag
 
@@ -331,17 +346,16 @@ Byte-identical to V Task F / R header. Alternative priors:
 git tag v1.0.0-rc1
 ```
 
-Applied on the Phase 7 commit.
+Originally on Phase 7 commit `b27c595`. After CI required tracking `capture.json`, the tag was moved to the tip that includes that fix and this report update (see `git show v1.0.0-rc1`).
 
 ---
 
 ## Not done / confirm
 
 - MIT licence: **confirm with Parth Sharma**.
-- GitHub Actions on `ubuntu-latest`: **NOT MEASURED** (branch not pushed).
-- Vercel preview URL: **NOT MEASURED**.
 - Lighthouse mobile performance ≥ 85 on `/`: not reached (72 / 74 / 84).
-- Clean-clone `npm test` without first generating or copying `scripts/surrogate/data/capture.json`: 1 failure (ENOENT).
+- Preview Deployment Protection: URL requires Vercel login (or a share / bypass token); public anonymous access NOT MEASURED.
+- Production promote (`vercel deploy --prod`): not run in this step.
 - rosbridge vs a live `rosbridge_server`: **NOT MEASURED**.
 - Gazebo: no integration.
 - Comparison with Shin et al.: **NOT MEASURED**.
