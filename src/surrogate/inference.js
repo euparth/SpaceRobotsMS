@@ -221,7 +221,7 @@ function scheduleFromSweep(wx0, wy0, wz0, sweep, step = 0.1) {
 
 /**
  * Full surrogate inference for one live state.
- * @returns measured fields — never hard-coded marketing numbers
+ * @returns latency measured per call; coupledRolloutMs / rigidRolloutMs come from opts, else metrics.json, else the 17 ms / 0.2 ms fallbacks
  */
 export function runSurrogateInference(wx, wy, wz, opts = {}) {
   const vRel = opts.vRel ?? 10

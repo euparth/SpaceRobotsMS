@@ -1,0 +1,62 @@
+=== Tue Nov  3 11:23:21 IST 2026 HEAD 8487b876f370e1f43f78088699f6ed99896c55b4 ===
+=== default gen (final code) ===
+EXIT_GEN=0
+b794288469521126068c8311254ee438831257db058710147727b4425693e1d1  trajectories.bin
+52156b234d541aa3eb9b3d26588d3b50659ba7062980f3c899a48f09596cb841  trajectories.meta.json
+4375a5f65e210e465e23c5edbcab6bd1d71ffdfc0cfba85cb8190c7c91212fc7  strain.json
+0734478b6f55eabbd65ef2df5316940d42cbba05824156386165368fda6503c5  capture.json
+50988afa017e35c4c5deb8b577098cb8de35df9e21af50b405d7bf8d66eba6cd  audit.json
+a01e8cded2a794b3acb6a0f08d83d5f2161dc079f99a7a0b463ebeeb3c5991e8  summary.json
+=== validation scripts, default path ===
+A EXIT=0
+B EXIT=0
+C EXIT=0
+D EXIT=0
+--- diff reports/raw/taskA_inertia.txt vs re-run ---
+IDENTICAL
+--- diff reports/raw/taskB_axis_sweep.txt vs re-run ---
+IDENTICAL
+--- diff reports/raw/taskC_misclass.txt vs re-run ---
+23c23
+< coupled_rollouts 1200 wall_s 8.246621458053589
+---
+> coupled_rollouts 1200 wall_s 9.595695165872574
+--- diff taskD_timing (timing expected to differ) ---
+10,12c10,12
+14,36c14,36
+7,8c7,8
+< pass 1 ratio mean(coupled)/mean(pinn) 16.237  median/median 16.058
+< pass 2 ratio mean(coupled)/mean(pinn) 16.653  median/median 17.036
+---
+> pass 1 ratio mean(coupled)/mean(pinn) 16.708  median/median 16.820
+> pass 2 ratio mean(coupled)/mean(pinn) 16.702  median/median 17.208
+=== check:surrogate (metrics.json backed up/restored) ===
+latency 0.392 ms  budget 2 ms  ok=true
+accuracy 94.7%  naive 83.8%  beats=true
+  S1 predPeak=0.69 truth=0.00 securePred=true P=100.0% optMs=0 truth@opt=true
+  S2 predPeak=1.35 truth=0.85 securePred=true P=100.0% optMs=0 truth@opt=true
+  S3 predPeak=4.04 truth=4.20 securePred=false P=0.0% optMs=1600 truth@opt=false
+  S4 predPeak=4.32 truth=3.92 securePred=false P=37.0% optMs=1100 truth@opt=true
+check:surrogate PASSED
+=== npm test ===
+ok 1 - default coupledImpact() output is unchanged by the two-way option plumbing (reference values from validation_2026-11.md Task B)
+ok 2 - rk4Step with torque=null is bit-identical to the 3-argument call
+ok 3 - NetSolver.twoWay defaults to false and the reaction accumulators are zero on the default path
+ok 4 - two-way coupling with drawstring off conserves total linear momentum to 1e-9 and is finite
+ok 5 - two-way single-axis z spins reproduce the one-way verdict boundary (3.0 capture, 3.5 eject)
+ok 6 - 1a: |H| and T relative drift over 10 s at H stay below 1e-12
+ok 7 - 1b: RK4 error vs H/8 reference is at round-off for h<=H and decreases ~4th order for coarse h
+ok 8 - 1c: closed-form max |wz| equals rigidBody.polhodeEnvelope and bounds the numeric 20 s peak
+ok 9 - 1c: closed-form candidates reject the infeasible branch (polhode does not cross that axis)
+# pass 9
+# fail 0
+=== npm run build ===
+computing gzip size...
+dist/index.html                          1.58 kB │ gzip:   0.80 kB
+dist/assets/physicsWorker-itsQVwJ_.js   16.48 kB
+dist/assets/index-BWz0rOVF.css          40.38 kB │ gzip:   7.59 kB
+dist/assets/react-C8w-UNLI.js          141.74 kB │ gzip:  45.48 kB
+dist/assets/index-BCZJJ74j.js          276.26 kB │ gzip: 108.30 kB
+dist/assets/three-JUMdUEaT.js          486.43 kB │ gzip: 122.79 kB
+✓ built in 1.96s
+EXIT_BUILD=0

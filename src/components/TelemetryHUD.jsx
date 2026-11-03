@@ -345,7 +345,7 @@ function AiTab({ enabled, prediction, metrics, onArmAutoFire, autoFireArmed, com
         <WzChart prediction={p} commanded={commanded} />
       </Section>
 
-      <Section title="Benchmark (measured)">
+      <Section title="Benchmark">
         <div className="grid grid-cols-2 gap-x-3 gap-y-1 px-3 pb-3">
           <Metric label="SURROGATE" value={fmt(p.inferenceLatencyMs, 2)} unit="ms" />
           <Metric label="COUPLED" value={fmt(p.coupledRolloutMs, 1)} unit="ms" />
@@ -355,8 +355,9 @@ function AiTab({ enabled, prediction, metrics, onArmAutoFire, autoFireArmed, com
           <Metric label="MODEL" value={p.modelLabel || 'JS MLP'} />
         </div>
         <div className="num px-3 pb-3 text-[10px] leading-relaxed text-slate-500">
-          Held-out capture accuracy vs naive |ωz₀|&gt;3 rule ({fmt(100 * (metrics?.naiveAccuracy ?? 0), 1)}%). Latency and
-          speedup re-measured in-browser. Strain head withheld from demo (held-out R² not useful yet).
+          Held-out capture accuracy vs naive |ωz₀|&gt;3 rule ({fmt(100 * (metrics?.naiveAccuracy ?? 0), 1)}%). Surrogate
+          latency is measured in-browser; coupled/rigid baselines come from the worker benchmark (17 ms / 0.2 ms
+          fallback until it completes). Strain head withheld (held-out R² = −0.049).
         </div>
       </Section>
     </>

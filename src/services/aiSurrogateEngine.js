@@ -1,6 +1,7 @@
 /**
  * Browser-facing PINN surrogate engine.
- * Field names mirror the thesis brief; values are always measured.
+ * Field names mirror the thesis brief. Latency is measured per call; coupled/rigid baselines are the
+ * worker benchmark result once available, otherwise metrics.json estimates (17 ms / 0.2 ms).
  */
 import {
   runSurrogateInference,

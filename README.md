@@ -31,7 +31,7 @@ src/
     telemetryHistory.js  ring buffer feeding the canvas plots
     telemetryExporter.js JSON / CSV dataset export
     cliCommands.js       /cli command interpreter
-    aiSurrogateEngine.js PINN / MLP forward pass wrapper (measured latency & speedup)
+    aiSurrogateEngine.js PINN / MLP forward pass wrapper (latency measured in-browser; speedup baseline from worker benchmark, 17 ms fallback until it completes)
   surrogate/
     mlp.js / inference.js / weights.json / metrics.json   browser Float32 surrogate
   shaders/
@@ -45,13 +45,13 @@ src/
 ```
 
 ### PINN AI surrogate
-A chaser flight computer cannot run the coupled RK4 + 144-node net at 60 Hz during a 10 m/s approach. The workbench ships a small **physics-informed MLP** (no ONNX, no torch) that answers, for the live ω₀:
+The workbench ships a small **physics-informed MLP** (no ONNX, no torch) that answers, for the live ω₀:
 
 1. Will a net fired **now** secure the target or lose it to twist-out?
 2. How hard is the net loaded at impact (peak strain % + tension N)?
 3. What is the best fire delay (nutation-sync)?
 
-Training uses RK4 trajectories (data + Euler residual + energy/|H| conservation) plus a peak-|ωz| head and a strain head. Labels come from the same physics modules as the live worker. **Every HUD number is measured**: inference latency, coupled/rigid rollout baselines (worker `benchmark`), held-out fidelity, and speedup. The naive “initial |ωz| > 3 ⇒ eject” rule is wrong on ~21% of random spins (Z is intermediate, so |ωz| can grow — S4 starts at 2.5 and ejects); the surrogate must beat that baseline (`npm run check:surrogate`).
+Training uses RK4 trajectories (data + Euler residual + energy/|H| conservation) plus a peak-|ωz| head and a strain head. Labels come from the same physics modules as the live worker. The naive “initial |ωz| > 3 ⇒ eject” rule is wrong on 20.8% (249/1,200 seeded rollouts; 15.0–22.6% across held-out splits) of random spins (Z is intermediate, so |ωz| can grow — S4 starts at 2.5 and ejects); the surrogate must beat that baseline (`npm run check:surrogate`). Measured values: `reports/validation_2026-11.md`, `reports/research_2026-11.md`.
 
 | Gate | Criterion |
 | --- | --- |
@@ -62,7 +62,7 @@ UI: **AI** tab (feasibility, Arm auto-fire, strain band, ωz(t) chart, benchmark
 
 ### Physics worker
 - RK4 integration of the torque-free Euler equations plus `q̇ = ½ q ⊗ [0, ω]`, substep 333 µs.
-- Energy and momentum drift are reported live (typically ~1e-14).
+- Energy and |H| drift are reported live. Measured offline over 10 s at H = 1/3000 s on 50 seeded spins: max relative drift 2.3215e-14 (|H|) and 4.5516e-14 (T) (`reports/research_2026-11.md`, Phase 1a).
 - The net is a tension-only XPBD cable lattice: threads resist stretch but go slack in compression, like a real net.
 - Capture state machine: STANDBY → NET IN FLIGHT → CONTACT → (CLOSING → SECURED) or EJECTED.
 - State is posted at 60 Hz as a transferable `Float32Array` (zero-copy).
@@ -70,14 +70,16 @@ UI: **AI** tab (feasibility, Arm auto-fire, strain band, ωz(t) chart, benchmark
 ### Instability law and prediction
 During a 0.25 s contact window the worker tracks peak |ωz|. If it exceeds 3.0 rad/s the target twists out. The excess rotational energy ΔT_z = ½·Iz·(ωz² − 3²) gives an upper-bound ejection speed √(2ΔT_z/m).
 
-Because Z is the intermediate axis, |ωz| can grow during a tumble. The workbench predicts the polhode peak |ωz| before launch:
+Because Z is the intermediate axis, |ωz| can grow during a tumble. The workbench predicts the polhode peak |ωz| before launch. Headless values (`node scripts/research/phase4_presets.mjs`, `reports/research_2026-11.md` Phase 4):
 
-| Scenario | ω₀ (rad/s) | Forecast | Result |
-| --- | --- | --- | --- |
-| S1 Cooperative | 0, 0, 0 | SECURE | SECURED, 100% enclosure |
-| S2 Stable tumble | 1.5, 1.0, 0.5 | SECURE (peak 1.66) | SECURED, 100% enclosure |
-| S3 High-spin Z | 0, 0, 4.2 | EJECT | EJECTED, peak 4.200 |
-| S4 Coupled tumble | 3.0, 3.0, 2.5 | PHASE-DEP (peak 4.03) | EJECTED, peak ≈3.98 |
+| Scenario | ω₀ (rad/s) | Closed-form max \|ωz\| | `predictOutcome` | Window peak \|ωz\|, fire now | Coupled rollout (one-way) |
+| --- | --- | --- | --- | --- | --- |
+| S1 Cooperative | 0, 0, 0 | 0.000000 | SECURE | 0.000000 | capture, peak 0.000000 |
+| S2 Stable tumble | 1.5, 1.0, 0.5 | 1.659865 | SECURE | 0.845196 | capture, peak 0.833099 |
+| S3 High-spin Z | 0, 0, 4.2 | 4.200000 | EJECT | 4.200000 | eject, peak 4.200000 |
+| S4 Coupled tumble | 3.0, 3.0, 2.5 | 4.033684 | PHASE_DEPENDENT | 3.924574 | eject, peak 3.908242 |
+
+Live-worker end states (SECURED / EJECTED, enclosure after closure) are not produced by the headless scripts and are not reported here.
 
 ### ROS 2 topics
 | Topic | Type | Rate |
@@ -118,11 +120,22 @@ view track                help                  clear
 ## Exported dataset
 JSON (`ps-msc.debris-capture.telemetry/v3`) or CSV with timestamps, quaternion, body rates, angular momentum, energies, nutation, position/velocity, enclosure, strain and capture status, plus AI prediction columns (`ai_*`) and the full model metadata / capture outcome.
 
+## Status and limitations
+
+- One-way coupling is the default and the capture verdict is rigid-body only: the body is integrated torque-free and the net sees it as an infinite-mass wall; the dataset label (`fireNowSecure`) is peak |ωz| of the torque-free body over the 0.25 s window.
+- Strain head R² = −0.049 on its held-out split and is excluded from verdicts.
+- Optimal-delay MAE 703 ms (PINN fire-schedule vs physics, 500 spins).
+- PINN physics residual uses temporal finite differences (central difference of the network output at ±0.02 s), not autodiff.
+- Ground truth is this solver, not experiment. No hardware or published-experiment comparison has been run.
+- Two-way coupling (`coupledImpact(..., { coupling: 'two-way' })`, `NetSolver.twoWay`) is experimental: it is off by default, changes 3 of 1,200 reference verdicts (eject → capture, all within 0.024 rad/s of the threshold), and the net's XPBD projection does not conserve angular momentum exactly during impact (`reports/research_2026-11.md`, Phase 3).
+- `speedupVsCoupledEstimate` in `src/surrogate/metrics.json` divides a hardcoded 17 ms by the training-time latency; the measured one-way coupled rollout on an Apple M1 is 6.7–7.5 ms mean (`reports/validation_2026-11.md` Task D, `reports/research_2026-11.md` Phase 3e).
+
 ## Development
 ```bash
 npm install
 npm run dev              # http://localhost:5173
 npm run build
+npm test                 # node:test — integrator, closed-form bound, coupling (tests/)
 npm run check:physics    # headless RK4 / polhode / net sanity check
 npm run check:surrogate  # latency < 2 ms + accuracy beats naive |ωz|>3 rule
 # offline retrain (optional):
