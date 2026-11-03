@@ -33,6 +33,14 @@ export class NetSolver {
       this.invMass[n] = 1 / (NODE_MASS + (this.corner[n] ? NET.cornerMass : 0))
     }
     this.setWovenEfficiency(NET.wovenEfficiency)
+    /**
+     * Experimental two-way coupling (default off). When true, resolveContacts() accumulates the
+     * equal-and-opposite contact impulse on the body: reactionImpulse (N·s, world frame) and
+     * reactionAngImpulse (N·m·s, world frame, about body.p). Reset at the start of every step().
+     */
+    this.twoWay = false
+    this.reactionImpulse = new Float64Array(3)
+    this.reactionAngImpulse = new Float64Array(3)
     this.stow(NET.standoff)
   }
 
@@ -136,6 +144,10 @@ export class NetSolver {
   }
 
   step(h, body) {
+    if (this.twoWay) {
+      this.reactionImpulse.fill(0)
+      this.reactionAngImpulse.fill(0)
+    }
     if (this.mode === MODE.STOWED) return
     const { pos, prev, vel, invMass } = this
     const R = body.R
@@ -301,6 +313,26 @@ export class NetSolver {
         pz -= tz * s
       }
 
+      if (this.twoWay) {
+        // Knot impulse from this contact correction: J = m_k (x_final − x_pre) / h.
+        // Body receives −J. Lever arm = knot position at the start of the step (prev) minus body.p:
+        // with v_{n+1} = (x_{n+1} − x_n)/h the net's discrete angular momentum is Σ m x_n × v_{n+1},
+        // so x_n is the lever arm that closes the body+net budget exactly (using x_{n+1} leaves an
+        // O(|v| h) residual).
+        const mk = 1 / this.invMass[n]
+        const jx = (mk * (px - pos[k])) / h
+        const jy = (mk * (py - pos[k + 1])) / h
+        const jz = (mk * (pz - pos[k + 2])) / h
+        const ax = prev[k] - p[0]
+        const ay = prev[k + 1] - p[1]
+        const az = prev[k + 2] - p[2]
+        this.reactionImpulse[0] -= jx
+        this.reactionImpulse[1] -= jy
+        this.reactionImpulse[2] -= jz
+        this.reactionAngImpulse[0] -= ay * jz - az * jy
+        this.reactionAngImpulse[1] -= az * jx - ax * jz
+        this.reactionAngImpulse[2] -= ax * jy - ay * jx
+      }
       pos[k] = px
       pos[k + 1] = py
       pos[k + 2] = pz

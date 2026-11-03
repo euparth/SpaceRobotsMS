@@ -1,0 +1,59 @@
+
+> space-debris-capture-sim@1.0.0 test
+> node --test tests/
+
+TAP version 13
+# Subtest: default coupledImpact() output is unchanged by the two-way option plumbing (reference values from validation_2026-11.md Task B)
+ok 1 - default coupledImpact() output is unchanged by the two-way option plumbing (reference values from validation_2026-11.md Task B)
+  ---
+  duration_ms: 89.270542
+  ...
+# Subtest: rk4Step with torque=null is bit-identical to the 3-argument call
+ok 2 - rk4Step with torque=null is bit-identical to the 3-argument call
+  ---
+  duration_ms: 1.171833
+  ...
+# Subtest: NetSolver.twoWay defaults to false and the reaction accumulators are zero on the default path
+ok 3 - NetSolver.twoWay defaults to false and the reaction accumulators are zero on the default path
+  ---
+  duration_ms: 0.88875
+  ...
+# Subtest: two-way coupling with drawstring off conserves total linear momentum to 1e-9 and is finite
+ok 4 - two-way coupling with drawstring off conserves total linear momentum to 1e-9 and is finite
+  ---
+  duration_ms: 35.97175
+  ...
+# Subtest: two-way single-axis z spins reproduce the one-way verdict boundary (3.0 capture, 3.5 eject)
+ok 5 - two-way single-axis z spins reproduce the one-way verdict boundary (3.0 capture, 3.5 eject)
+  ---
+  duration_ms: 18.473
+  ...
+# Subtest: 1a: |H| and T relative drift over 10 s at H stay below 1e-12
+ok 6 - 1a: |H| and T relative drift over 10 s at H stay below 1e-12
+  ---
+  duration_ms: 47.902459
+  ...
+# Subtest: 1b: RK4 error vs H/8 reference is at round-off for h<=H and decreases ~4th order for coarse h
+ok 7 - 1b: RK4 error vs H/8 reference is at round-off for h<=H and decreases ~4th order for coarse h
+  ---
+  duration_ms: 16.664209
+  ...
+# Subtest: 1c: closed-form max |wz| equals rigidBody.polhodeEnvelope and bounds the numeric 20 s peak
+ok 8 - 1c: closed-form max |wz| equals rigidBody.polhodeEnvelope and bounds the numeric 20 s peak
+  ---
+  duration_ms: 127.7855
+  ...
+# Subtest: 1c: closed-form candidates reject the infeasible branch (polhode does not cross that axis)
+ok 9 - 1c: closed-form candidates reject the infeasible branch (polhode does not cross that axis)
+  ---
+  duration_ms: 0.155292
+  ...
+1..9
+# tests 9
+# suites 0
+# pass 9
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 257.108833

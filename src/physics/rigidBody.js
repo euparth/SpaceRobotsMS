@@ -5,8 +5,10 @@ export const [IX, IY, IZ] = CUBESAT.inertia
 /**
  * State y = [ωx, ωy, ωz, q0, q1, q2, q3] with q the scalar-first body→LVLH quaternion.
  * Net restraint is modelled as a viscous torque τ = −c·I·ω (c = 0 when torque-free).
+ * `torque` (optional, body frame, N·m) is an external torque held constant over the step;
+ * when null the arithmetic is identical to the torque-free form.
  */
-export function eulerDerivative(y, damping, out) {
+export function eulerDerivative(y, damping, out, torque = null) {
   const wx = y[0]
   const wy = y[1]
   const wz = y[2]
@@ -14,9 +16,14 @@ export function eulerDerivative(y, damping, out) {
   const q1 = y[4]
   const q2 = y[5]
   const q3 = y[6]
-  const tx = -damping * IX * wx
-  const ty = -damping * IY * wy
-  const tz = -damping * IZ * wz
+  let tx = -damping * IX * wx
+  let ty = -damping * IY * wy
+  let tz = -damping * IZ * wz
+  if (torque) {
+    tx += torque[0]
+    ty += torque[1]
+    tz += torque[2]
+  }
   out[0] = (tx - (IZ - IY) * wy * wz) / IX
   out[1] = (ty - (IX - IZ) * wz * wx) / IY
   out[2] = (tz - (IY - IX) * wx * wy) / IZ
@@ -32,14 +39,14 @@ const k3 = new Float64Array(7)
 const k4 = new Float64Array(7)
 const stage = new Float64Array(7)
 
-export function rk4Step(y, h, damping = 0) {
-  eulerDerivative(y, damping, k1)
+export function rk4Step(y, h, damping = 0, torque = null) {
+  eulerDerivative(y, damping, k1, torque)
   for (let i = 0; i < 7; i++) stage[i] = y[i] + 0.5 * h * k1[i]
-  eulerDerivative(stage, damping, k2)
+  eulerDerivative(stage, damping, k2, torque)
   for (let i = 0; i < 7; i++) stage[i] = y[i] + 0.5 * h * k2[i]
-  eulerDerivative(stage, damping, k3)
+  eulerDerivative(stage, damping, k3, torque)
   for (let i = 0; i < 7; i++) stage[i] = y[i] + h * k3[i]
-  eulerDerivative(stage, damping, k4)
+  eulerDerivative(stage, damping, k4, torque)
   for (let i = 0; i < 7; i++) y[i] += (h / 6) * (k1[i] + 2 * k2[i] + 2 * k3[i] + k4[i])
   const n = Math.hypot(y[3], y[4], y[5], y[6])
   y[3] /= n
