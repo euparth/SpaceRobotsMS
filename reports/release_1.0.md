@@ -224,7 +224,7 @@ three.js is not loaded on `/methods` (Playwright assertion). Surrogate `weights.
 
 | File | Content |
 | --- | --- |
-| `LICENSE` | MIT, Copyright (c) 2026 Parth Sharma. **Confirm with Parth Sharma** that MIT is the intended licence. |
+| `LICENSE` | MIT, Copyright (c) 2026 Parth Sharma. Confirmed by Parth Sharma before the v1.0.0 tag (2026-11-05). |
 | `CITATION.cff` | author Parth Sharma, version 1.0.0, repository `https://github.com/euparth/SpaceRobotsMS` |
 | `CHANGELOG.md` | 1.0.0-rc1 |
 | `CONTRIBUTING.md` | test policy (`npm test`, `test:e2e`) and verification policy (do not invent numbers; do not retrain weights) |
@@ -350,9 +350,16 @@ Originally on Phase 7 commit `b27c595`. After CI required tracking `capture.json
 
 ---
 
+## Pre-v1.0.0 items (2026-11-05)
+
+- **MIT licence**: confirmed by Parth Sharma. The “confirm with Parth Sharma” notes were removed from `README.md` and this report; `LICENSE` remains MIT.
+- **AI assistance disclosure** (wording for Parth to check before release): added to `README.md` (Methods and verification · Provenance) and `/methods` §5: “Developed with AI coding assistance (Cursor). The author specified the research questions and reviewed the results; numbers come from the committed scripts and tests.”
+- **gitleaks** 8.30.1 over full history (`gitleaks detect --source . --log-opts="--all"`): 24 commits scanned, ~1.29 MB, **no leaks found** (exit 0). Raw: `reports/raw/release/gitleaks.txt`, `reports/raw/release/gitleaks.json`.
+- Git history and `Co-authored-by` trailers were not rewritten. Repository visibility was not changed.
+
 ## Not done / confirm
 
-- MIT licence: **confirm with Parth Sharma**.
+- AI assistance disclosure wording: Parth to check before release.
 - Lighthouse mobile performance ≥ 85 on `/`: not reached (72 / 74 / 84).
 - Preview Deployment Protection: URL requires Vercel login (or a share / bypass token); public anonymous access NOT MEASURED.
 - Production promote (`vercel deploy --prod`): not run in this step.
@@ -360,3 +367,4 @@ Originally on Phase 7 commit `b27c595`. After CI required tracking `capture.json
 - Gazebo: no integration.
 - Comparison with Shin et al.: **NOT MEASURED**.
 - `src/surrogate/weights.json`: not retrained.
+- Repository visibility: left unchanged; Parth will set it.

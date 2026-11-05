@@ -445,7 +445,8 @@ export default function MethodsPage() {
         <H2 id="provenance">5. Provenance</H2>
         <P>
           Built October–November 2026. The author's 2023 M.Sc. thesis (TH OWL) reviewed Shin et al.'s ABAQUS net-capture study; this simulator
-          is an independent re-implementation of that scenario.
+          is an independent re-implementation of that scenario. Developed with AI coding assistance (Cursor). The author specified the research
+          questions and reviewed the results; numbers come from the committed scripts and tests.
         </P>
         <Table
           head={['Item', 'Value']}
