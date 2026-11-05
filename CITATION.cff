@@ -3,7 +3,7 @@ message: "If you use this simulator, please cite it as below."
 title: "Space Debris Capture Simulator: tumbling 12U CubeSat captured by a Kevlar 49 net"
 type: software
 version: 1.0.0
-date-released: 2026-11-03
+date-released: 2026-11-05
 license: MIT
 repository-code: "https://github.com/euparth/SpaceRobotsMS"
 url: "https://space-debris-sim.vercel.app"
@@ -35,7 +35,7 @@ preferred-citation:
       email: euparth@gmail.com
   title: "Space Debris Capture Simulator: tumbling 12U CubeSat captured by a Kevlar 49 net"
   version: 1.0.0
-  date-released: 2026-11-03
+  date-released: 2026-11-05
   license: MIT
   url: "https://space-debris-sim.vercel.app"
   repository-code: "https://github.com/euparth/SpaceRobotsMS"
