@@ -383,6 +383,11 @@ Items for the v1.0.0 tag (one commit each). Tag and GitHub Release are **not** c
 - Abstract: replaced “MLP surrogate for the fire-now decision” with “closed-form spin-envelope criterion for the fire-now decision; MLP surrogate retained for comparison”.
 - Added a `preferred-citation` block (`type: software`, author Parth Sharma, version 1.0.0, same repository URL).
 
+
+### 4. VerdictsPanel envelope wording
+
+- Replaced the rule/envelope footnote with: “The static rule reads the initial state only. The envelope bounds |ωz| for all time, so ENVELOPE SECURE is a conservative (sufficient) condition for firing at any delay; it can hold spins the 0.25 s window would have cleared (99 of 1,200 on the default prior).” (`src/components/VerdictsPanel.jsx`)
+
 ## Not done / confirm
 
 - AI assistance disclosure wording: Parth to check before release.

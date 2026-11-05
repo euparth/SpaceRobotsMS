@@ -143,8 +143,9 @@ export default function VerdictsPanel({ verdicts, compact = false }) {
         </div>
       </div>
       <p className="mt-2 text-[10px] leading-snug text-slate-600">
-        Highlighted cells disagree with the reference ({solver && solver.verdict !== 'MISS' ? 'solver' : 'numeric label'}). The rule and the envelope
-        are not fire-now predictors: the rule reads the initial state only; the envelope bounds |ωz| for all time.
+        Highlighted cells disagree with the reference ({solver && solver.verdict !== 'MISS' ? 'solver' : 'numeric label'}). The static rule reads the
+        initial state only. The envelope bounds |ωz| for all time, so ENVELOPE SECURE is a conservative (sufficient) condition for firing at any
+        delay; it can hold spins the 0.25 s window would have cleared (99 of 1,200 on the default prior).
       </p>
     </Section>
   )
