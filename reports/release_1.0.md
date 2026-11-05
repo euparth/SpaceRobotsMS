@@ -395,6 +395,12 @@ Items for the v1.0.0 tag (one commit each). Tag and GitHub Release are **not** c
 - When |ωz0| rule and envelope disagree, a second line `rule: SECURE` (or `rule: EJECT`) is shown (S4: envelope EJECT, `rule: SECURE`).
 - `predictOutcome()` still returns `PHASE_DEPENDENT` for the live Forecast badge and for `tests/methods.test.mjs` / research tables; no test asserted the old scenario-card label.
 
+
+### 6. MobilePredict BEST DELAY uses RK4 window
+
+- `BEST DELAY` metric now uses `autoFirePlan(verdicts)` (RK4 `numeric.firstSecureDelayMs`, same source as auto-fire).
+- PINN delay is shown only as a secondary `PINN est.` line under the metrics (matches desktop AI tab).
+
 ## Not done / confirm
 
 - AI assistance disclosure wording: Parth to check before release.

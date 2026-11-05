@@ -172,15 +172,25 @@ export default function MobilePredict({
               <Metric
                 label="BEST DELAY"
                 value={
-                  prediction.firstSecureMs == null && !prediction.fireNowSecure
-                    ? 'none'
-                    : prediction.fireNowSecure
-                      ? 'now'
-                      : `+${prediction.optimalLaunchDelayMs}`
+                  !plan.ready
+                    ? '—'
+                    : plan.never
+                      ? 'none'
+                      : plan.delayMs === 0
+                        ? 'now'
+                        : `+${plan.delayMs}`
                 }
-                unit={prediction.fireNowSecure || prediction.firstSecureMs == null ? undefined : 'ms'}
+                unit={!plan.ready || plan.never || plan.delayMs === 0 ? undefined : 'ms'}
               />
             </div>
+            <p className="num mt-1.5 text-[10px] text-slate-500">
+              PINN est. (test MAE 703 ms):{' '}
+              {prediction.firstSecureMs == null
+                ? prediction.fireNowSecure
+                  ? '0 ms'
+                  : 'none'
+                : `${prediction.firstSecureMs} ms`}
+            </p>
           )}
         </div>
 
@@ -261,11 +271,6 @@ export default function MobilePredict({
                     ? 'Launch now — RK4 window secure'
                     : `Arm auto-fire · +${plan.delayMs} ms (RK4 window)`}
           </Button>
-          {aiEnabled && prediction && (
-            <p className="num mt-1.5 text-[10px] text-slate-500">
-              PINN estimate (test MAE 703 ms): {prediction.firstSecureMs == null ? (prediction.fireNowSecure ? '0 ms' : 'none') : `${prediction.firstSecureMs} ms`}
-            </p>
-          )}
         </div>
       </div>
     </aside>
