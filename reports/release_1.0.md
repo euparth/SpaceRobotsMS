@@ -366,7 +366,17 @@ Items for the v1.0.0 tag (one commit each). Tag and GitHub Release are **not** c
 - Added `surrogate_verification_log.txt` to `.gitignore`.
 - `vite.config.js`: `__GIT_DIRTY__` is forced false when `VERCEL` is set so GitHub→Vercel builds never stamp `+dirty`.
 - Production deploys only via the GitHub→Vercel integration (no `vercel deploy --prod` from a dirty local tree).
-- Production `/methods` build string after this push: *(filled after deploy)*
+- Commit: `a6188b3`.
+- Production `/methods` after deploy `dpl_3Km1j3AL4mpog6P9kCZ9X5BxNXPo` (alias https://space-debris-sim.vercel.app):
+  - footer build label: `main · a6188b3` (no `+dirty`)
+  - full footer: `Space Debris Capture Simulator · build main · a6188b3 · 2026-11-05 · https://github.com/euparth/SpaceRobotsMS`
+  - intro “Build shown”: `main · a6188b3 (2026-11-05)`
+
+### 2. Rename GNC workbench v3 → v1.0
+
+- `README.md:1`: title `(v1.0)`.
+- `GNCWorkbench.jsx` header subtitle: `v1.0` (mobile and desktop).
+- Telemetry schema id `ps-msc.debris-capture.telemetry/v3` left unchanged (`src/services/telemetryExporter.js`); no test asserted the “GNC v3” UI string.
 
 ## Not done / confirm
 

@@ -243,8 +243,8 @@ function TopBar({ snapshot, commanded, bridge, busHz, onTakeTour, aiEnabled, onT
             </span>
           </div>
           <div className="num truncate text-[10.5px] text-slate-500 short:hidden">
-            <span className="sm:hidden">Debris capture digital twin · GNC v3</span>
-            <span className="hidden sm:inline">GNC workbench v3 · 12U CubeSat · Kevlar 49 net · LEO</span>
+            <span className="sm:hidden">Debris capture digital twin · v1.0</span>
+            <span className="hidden sm:inline">v1.0 · 12U CubeSat · Kevlar 49 net · LEO</span>
             <span className="text-slate-700"> · </span>
             <a href="/methods" className="text-slate-400 underline-offset-2 hover:text-slate-100 hover:underline" title="Model, verification, results, limitations, reproduction">
               Methods

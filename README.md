@@ -1,4 +1,4 @@
-# Space Debris Capture Simulator (GNC Workbench v3)
+# Space Debris Capture Simulator (v1.0)
 
 Live: https://space-debris-sim.vercel.app
 
