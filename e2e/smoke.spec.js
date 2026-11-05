@@ -40,10 +40,12 @@ test('workbench loads with no console errors and runs S4 to the measured verdict
   await expect(cells.nth(2)).toHaveAttribute('data-verdict', 'EJECT') // PINN
   await expect(cells.nth(3)).toHaveAttribute('data-verdict', 'PENDING') // solver: not yet run
 
-  // run the live solver: S4 fired now ejects (measured peak 3.9–4.0 rad/s)
-  await page.keyboard.press('l')
-  await expect(page.getByText(/TWIST-OUT EJECTION/).first()).toBeVisible({ timeout: 90_000 })
-  await expect(cells.nth(3)).toHaveAttribute('data-verdict', 'EJECT', { timeout: 30_000 })
+  // run the live solver: S4 fired now ejects (measured peak 3.9–4.0 rad/s).
+  // The TWIST-OUT banner is shown when phase === EJECTED and decision.status === EJECTED;
+  // that same decision sets the solver verdict cell to EJECT — wait on that state, then assert the banner.
+  await page.getByRole('button', { name: 'Launch capture net' }).click()
+  await expect(cells.nth(3)).toHaveAttribute('data-verdict', 'EJECT', { timeout: 90_000 })
+  await expect(page.getByText(/TWIST-OUT EJECTION/).first()).toBeVisible()
   const solverText = await cells.nth(3).innerText()
   const peak = Number(/(\d\.\d{3})/.exec(solverText)?.[1])
   expect(peak).toBeGreaterThan(3.0)
