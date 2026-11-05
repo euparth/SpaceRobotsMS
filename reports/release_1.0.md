@@ -433,10 +433,13 @@ Workbench performance target ≥ 85 was not met (WebGL / three.js long tasks und
 | 5 Scenario cards envelope | `fdc035f` |
 | 6 Mobile BEST DELAY (incl. JSX fragment fix) | `e46cbe3`, `db897f3` |
 | 7 Lighthouse scores recorded | included in `db897f3` (report §7) |
-| 8 Final verify + gitleaks | *(this commit)* |
+| 8 Final verify + gitleaks | `a357718` |
 
-- CI run URL: *(filled after push)*
-- Production build string after this push: *(filled after deploy)*
+- CI run (success): https://github.com/euparth/SpaceRobotsMS/actions/runs/41979845537 (`test-build` + `browser-smoke`, head `a357718`).
+- Production `/methods` after deploy `dpl_BUFxDNUfi6hSorUJiJQdQqjuzvDr`:
+  - footer build label: `main · a357718` (no `+dirty`)
+  - full footer: `Space Debris Capture Simulator · build main · a357718 · 2026-11-05 · https://github.com/euparth/SpaceRobotsMS`
+  - intro “Build shown”: `main · a357718 (2026-11-05)`
 
 ## Not done / confirm
 
