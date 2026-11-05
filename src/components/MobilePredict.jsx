@@ -161,36 +161,38 @@ export default function MobilePredict({
         <div className="border-b border-ink-700 px-3 py-2.5">
           <VerdictBanner prediction={aiEnabled ? prediction : null} />
           {aiEnabled && prediction && (
-            <div className="mt-2 grid grid-cols-3 gap-1.5">
-              <Metric
-                label="PEAK |ωz|̂"
-                value={fmt(prediction.peakWzPred, 2)}
-                unit="rad/s"
-                tone={prediction.peakWzPred > CAPTURE.wzLimit ? 'alert' : 'ok'}
-              />
-              <Metric label="PHASES" value={`${fmt(prediction.captureProbability, 0)}%`} />
-              <Metric
-                label="BEST DELAY"
-                value={
-                  !plan.ready
-                    ? '—'
-                    : plan.never
-                      ? 'none'
-                      : plan.delayMs === 0
-                        ? 'now'
-                        : `+${plan.delayMs}`
-                }
-                unit={!plan.ready || plan.never || plan.delayMs === 0 ? undefined : 'ms'}
-              />
-            </div>
-            <p className="num mt-1.5 text-[10px] text-slate-500">
-              PINN est. (test MAE 703 ms):{' '}
-              {prediction.firstSecureMs == null
-                ? prediction.fireNowSecure
-                  ? '0 ms'
-                  : 'none'
-                : `${prediction.firstSecureMs} ms`}
-            </p>
+            <>
+              <div className="mt-2 grid grid-cols-3 gap-1.5">
+                <Metric
+                  label="PEAK |ωz|̂"
+                  value={fmt(prediction.peakWzPred, 2)}
+                  unit="rad/s"
+                  tone={prediction.peakWzPred > CAPTURE.wzLimit ? 'alert' : 'ok'}
+                />
+                <Metric label="PHASES" value={`${fmt(prediction.captureProbability, 0)}%`} />
+                <Metric
+                  label="BEST DELAY"
+                  value={
+                    !plan.ready
+                      ? '—'
+                      : plan.never
+                        ? 'none'
+                        : plan.delayMs === 0
+                          ? 'now'
+                          : `+${plan.delayMs}`
+                  }
+                  unit={!plan.ready || plan.never || plan.delayMs === 0 ? undefined : 'ms'}
+                />
+              </div>
+              <p className="num mt-1.5 text-[10px] text-slate-500">
+                PINN est. (test MAE 703 ms):{' '}
+                {prediction.firstSecureMs == null
+                  ? prediction.fireNowSecure
+                    ? '0 ms'
+                    : 'none'
+                  : `${prediction.firstSecureMs} ms`}
+              </p>
+            </>
           )}
         </div>
 

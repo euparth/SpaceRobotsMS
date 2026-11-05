@@ -401,6 +401,21 @@ Items for the v1.0.0 tag (one commit each). Tag and GitHub Release are **not** c
 - `BEST DELAY` metric now uses `autoFirePlan(verdicts)` (RK4 `numeric.firstSecureDelayMs`, same source as auto-fire).
 - PINN delay is shown only as a secondary `PINN est.` line under the metrics (matches desktop AI tab).
 
+
+### 7. Lighthouse (no further work)
+
+Final measured scores from Phase 6b (Lighthouse 12.8.2, Chrome 156, mobile Slow 4G / 4× CPU). No further optimisation attempted for v1.0.0.
+
+| Page | Run | Performance | Accessibility | LCP | TBT | CLS |
+| --- | --- | --- | --- | --- | --- | --- |
+| `/` workbench | 1 | 72 | 100 | 3.5 s | 670 ms | 0 |
+| `/` workbench | 2 | 74 | 100 | 3.3 s | 700 ms | 0 |
+| `/` workbench | 3 | 84 | 100 | 3.1 s | 360 ms | 0 |
+| `/methods` | 1 | 97 | 100 | 2.2 s | 60 ms | 0 |
+| `/methods` | 2 | 99 | 100 | 1.7 s | 20 ms | 0 |
+
+Workbench performance target ≥ 85 was not met (WebGL / three.js long tasks under throttle).
+
 ## Not done / confirm
 
 - AI assistance disclosure wording: Parth to check before release.
