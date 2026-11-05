@@ -416,6 +416,28 @@ Final measured scores from Phase 6b (Lighthouse 12.8.2, Chrome 156, mobile Slow 
 
 Workbench performance target ≥ 85 was not met (WebGL / three.js long tasks under throttle).
 
+
+### 8. Final verification, push, CI, gitleaks
+
+- Local: `npm ci` → `npm test` (33 pass) → `npm run build` (exit 0) → `npx playwright test` (3 pass, 21.5 s).
+- Pushed `main` through this tip. GitHub Actions and production `/methods` build string recorded below after deploy.
+- gitleaks 8.30.1 (`gitleaks detect --source . --log-opts="--all"`): **32 commits scanned**, ~1.30 MB, **no leaks found** (exit 0). Raw: `reports/raw/release/gitleaks_final.txt`, `reports/raw/release/gitleaks_final.json`.
+- `v1.0.0` tag / GitHub Release / visibility: not changed.
+
+| Item | Commit |
+| --- | --- |
+| 1 Clean production build | `a6188b3` |
+| 2 Rename to v1.0 | `6b37807` |
+| 3 CITATION.cff | `2ed266b` |
+| 4 VerdictsPanel wording | `f7ae4fe` |
+| 5 Scenario cards envelope | `fdc035f` |
+| 6 Mobile BEST DELAY (incl. JSX fragment fix) | `e46cbe3`, `db897f3` |
+| 7 Lighthouse scores recorded | included in `db897f3` (report §7) |
+| 8 Final verify + gitleaks | *(this commit)* |
+
+- CI run URL: *(filled after push)*
+- Production build string after this push: *(filled after deploy)*
+
 ## Not done / confirm
 
 - AI assistance disclosure wording: Parth to check before release.
