@@ -12,10 +12,16 @@ function git(cmd, fallback) {
 }
 const commit = git('git rev-parse --short=7 HEAD', (process.env.VERCEL_GIT_COMMIT_SHA || 'unknown').slice(0, 7))
 const tag = git('git describe --tags --exact-match HEAD', process.env.VERCEL_GIT_COMMIT_REF || '')
-// GitHub→Vercel production builds from a clean checkout; never stamp "+dirty" on Vercel.
-const dirty = process.env.VERCEL
-  ? false
-  : git('git status --porcelain --untracked-files=no', '') !== ''
+/** Dirty iff tracked files differ from HEAD. If git is unavailable (empty checkout), treat as clean. */
+function gitDirty() {
+  try {
+    const out = execSync('git status --porcelain --untracked-files=no', { stdio: ['ignore', 'pipe', 'ignore'] }).toString()
+    return out.trim() !== ''
+  } catch {
+    return false
+  }
+}
+const dirty = gitDirty()
 
 export default defineConfig({
   plugins: [react()],
