@@ -108,7 +108,7 @@ export function buildDataset(rows, { decision, eta, surrogate = null }) {
     generated_at: new Date().toISOString(),
     source: {
       project: 'Space Debris Capture Simulator — tumbling 12U CubeSat, Kevlar 49 net',
-      engine: 'GNC Workbench v3',
+      engine: 'Space Debris Capture Simulator v1.0',
       integrator: 'RK4 · Euler rigid-body equations + quaternion kinematics',
       net_solver: 'XPBD tension-only cable lattice · OBB contact · Coulomb friction',
       substep_s: SOLVER.substep,
