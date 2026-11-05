@@ -464,7 +464,7 @@ export default function MethodsPage() {
         <H2 id="reproduce">6. Reproduction</H2>
         <P>From a clean clone, Node v18.20.8 (a machine with 8 or more cores reproduces the dataset hashes exactly):</P>
         <Pre label="reproduction commands">{`git clone ${BUILD.repository}.git SpaceRobotsMS && cd SpaceRobotsMS
-git checkout v1.0.0-rc1
+git checkout v1.0.0
 npm ci
 npm test                                   # node:test, tests/*.test.mjs
 npm run build                              # vite build, writes dist/

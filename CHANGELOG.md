@@ -3,9 +3,10 @@
 All notable changes to this project are documented here. Numbers quoted are measured values from
 `reports/`; the file and section they come from is named next to each.
 
-## [1.0.0-rc1] — 2026-11-03
+## [1.0.0] — 2026-11-05
 
-Release candidate prepared for academic review. One commit per phase on `main`.
+Final 1.0.0 release for academic citation. One commit per phase on `main`; release-candidate
+work shipped earlier as `v1.0.0-rc1`.
 
 ### Added
 - **Envelope criterion in the product path** (`src/physics/envelope.js`, Verdicts panel): closed-form
