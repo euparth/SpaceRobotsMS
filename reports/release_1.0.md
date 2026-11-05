@@ -458,7 +458,7 @@ Workbench performance target ≥ 85 was not met (WebGL / three.js long tasks und
 - Production `/methods` footer after clean GitHub→Vercel deploy `dpl_5bwSADyNPkyGj87yy868PWk9Fb1A` (commit `ec9b5c7`):
   - build label: `main · ec9b5c7` (no `+dirty`)
   - exact footer string: `Space Debris Capture Simulator · build main · ec9b5c7 · 2026-11-05 · https://github.com/euparth/SpaceRobotsMS`
-- gitleaks 8.30.1 (`gitleaks detect --source . --log-opts="--all"`): **43 commits scanned**, ~1.31 MB, **no leaks found** (exit 0). Raw: `reports/raw/release/gitleaks_pre_v1.txt`, `reports/raw/release/gitleaks_pre_v1.json`.
+- gitleaks 8.30.1 (`gitleaks detect --source . --log-opts="--all"`): **44 commits scanned**, ~1.31 MB, **no leaks found** (exit 0). Raw: `reports/raw/release/gitleaks_pre_v1.txt`, `reports/raw/release/gitleaks_pre_v1.json`.
 
 ## Not done / confirm
 
