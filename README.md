@@ -2,6 +2,8 @@
 
 Live: https://space-debris-sim.vercel.app
 
+DOI (concept, always the latest version): [10.5281/zenodo.23973367](https://doi.org/10.5281/zenodo.23973367)
+
 A browser-based GNC (guidance, navigation and control) workbench that simulates a non-cooperative, tumbling **12U CubeSat** in LEO being captured by a deployable **Kevlar 49 net**. Physics runs in a Web Worker, telemetry is published on an in-browser ROS 2-style topic bus (same topic names and message types; no ROS 2 process is involved), and the net is rendered with a GLSL strain shader.
 
 ## Physical ground truth
@@ -177,7 +179,7 @@ The in-app page [`/methods`](https://space-debris-sim.vercel.app/methods) (sourc
 - **Verification** (`reports/research_2026-11.md`): relative drift over 10 s at H ≤ 2.3215e-14 (|H|) and 4.5516e-14 (T) on 50 spins; observed order of convergence 4.00 on the coarse sweep (15 H → 150 H), round-off at H; closed-form bound vs 20 s numeric peak within 1.56e-7 rad/s with no row over 1e-3; single-axis sweep z 3.0 capture / 3.5 eject; two-way coupling with the drawstring off closes |ΔP_total| to 2.5e-12 N·s and leaves |ΔL_total| 3.2e-2 N·m·s; coupled rollout 6.7–7.5 ms mean, PINN 0.40–0.45 ms (Apple M1, Node v18.20.8).
 - **Results**: four-prior table (uniform-box 731 rule-secure / 245 false-secure / 4 false-eject; log-uniform-mag 1165 / 7 / 4; slow and moderate 1200 / 0 / 0), physics-limited 340 and window-limited 99 rows. The 20.75 % disagreement on the default dataset is a property of its prior and is not an operational failure rate.
 - **Limitations**: the "Status and limitations" list below, plus the XPBD angular-momentum residual (≈1 % of |L|) and the 8-worker seed dependence of the dataset.
-- **Provenance**: built October–November 2026. The author's 2023 M.Sc. thesis (TH OWL) reviewed Shin et al.'s ABAQUS net-capture study; this simulator is an independent re-implementation of that scenario. The git commit and tag are injected at build time (`vite.config.js`) and shown in the header and on `/methods`. Developed with AI assistance. Cursor was the coding and testing partner; Gemini was used for background research and other secondary tasks; Claude was used for review, the project landing page, and drafting documentation. The author specified the research questions and reviewed the results; numbers come from the committed scripts and tests.
+- **Provenance**: built October–November 2026. The author's 2023 M.Sc. thesis (TH OWL) reviewed Shin et al.'s ABAQUS net-capture study; this simulator is an independent re-implementation of that scenario. The git commit and tag are injected at build time (`vite.config.js`) and shown in the header and on `/methods`. Concept DOI (always the latest version): [10.5281/zenodo.23973367](https://doi.org/10.5281/zenodo.23973367). Developed with AI assistance. Cursor was the coding and testing partner; Gemini was used for background research and other secondary tasks; Claude was used for review, the project landing page, and drafting documentation. The author specified the research questions and reviewed the results; numbers come from the committed scripts and tests.
 
 See `LICENSE` (MIT, confirmed by Parth Sharma), `CITATION.cff`, `CHANGELOG.md`, and `CONTRIBUTING.md`.
 

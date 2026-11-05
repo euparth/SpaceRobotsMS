@@ -445,13 +445,16 @@ export default function MethodsPage() {
         <H2 id="provenance">5. Provenance</H2>
         <P>
           Built October–November 2026. The author's 2023 M.Sc. thesis (TH OWL) reviewed Shin et al.'s ABAQUS net-capture study; this simulator
-          is an independent re-implementation of that scenario. Developed with AI assistance. Cursor was the coding and testing partner; Gemini was used for background research and other secondary tasks; Claude was used for review, the project landing page, and drafting documentation. The author specified the research questions and reviewed the results; numbers come from the committed scripts and tests.
+          is an independent re-implementation of that scenario. Concept DOI (always the latest version):{' '}
+          <a href="https://doi.org/10.5281/zenodo.23973367" className="text-sky-300 hover:underline">10.5281/zenodo.23973367</a>.
+          {' '}Developed with AI assistance. Cursor was the coding and testing partner; Gemini was used for background research and other secondary tasks; Claude was used for review, the project landing page, and drafting documentation. The author specified the research questions and reviewed the results; numbers come from the committed scripts and tests.
         </P>
         <Table
           head={['Item', 'Value']}
           rows={[
             ['Author', 'Parth Sharma'],
             ['Repository', BUILD.repository],
+            ['Concept DOI', '10.5281/zenodo.23973367'],
             ['This build', buildLabel() + (BUILD.date ? ` (${BUILD.date})` : '')],
             ['Validation reference commit', '0da6f6985d59467ff87709d93d339dd461a438dc (tag validation-2026-11)'],
             ['Reports', 'reports/validation_2026-11.md · reports/research_2026-11.md · reports/release_1.0.md'],
