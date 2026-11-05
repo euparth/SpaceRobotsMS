@@ -357,14 +357,25 @@ Originally on Phase 7 commit `b27c595`. After CI required tracking `capture.json
 - **gitleaks** 8.30.1 over full history (`gitleaks detect --source . --log-opts="--all"`): 24 commits scanned, ~1.29 MB, **no leaks found** (exit 0). Raw: `reports/raw/release/gitleaks.txt`, `reports/raw/release/gitleaks.json`.
 - Git history and `Co-authored-by` trailers were not rewritten. Repository visibility was not changed.
 
+## 1.0.0 final
+
+Items for the v1.0.0 tag (one commit each). Tag and GitHub Release are **not** created here; Parth will publicise the repo and enable Zenodo first.
+
+### 1. Clean production build
+
+- Added `surrogate_verification_log.txt` to `.gitignore`.
+- `vite.config.js`: `__GIT_DIRTY__` is forced false when `VERCEL` is set so GitHub→Vercel builds never stamp `+dirty`.
+- Production deploys only via the GitHub→Vercel integration (no `vercel deploy --prod` from a dirty local tree).
+- Production `/methods` build string after this push: *(filled after deploy)*
+
 ## Not done / confirm
 
 - AI assistance disclosure wording: Parth to check before release.
-- Lighthouse mobile performance ≥ 85 on `/`: not reached (72 / 74 / 84).
+- Lighthouse mobile performance ≥ 85 on `/`: not reached (72 / 74 / 84). See §1.0.0 final item 7 for the recorded scores.
 - Preview Deployment Protection: URL requires Vercel login (or a share / bypass token); public anonymous access NOT MEASURED.
-- Production promote (`vercel deploy --prod`): not run in this step.
 - rosbridge vs a live `rosbridge_server`: **NOT MEASURED**.
 - Gazebo: no integration.
 - Comparison with Shin et al.: **NOT MEASURED**.
 - `src/surrogate/weights.json`: not retrained.
 - Repository visibility: left unchanged; Parth will set it.
+- `v1.0.0` tag / GitHub Release: not created in this pass.

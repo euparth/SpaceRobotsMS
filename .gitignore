@@ -3,6 +3,7 @@ dist
 .DS_Store
 *.local
 .vercel
+surrogate_verification_log.txt
 # Large generated binaries stay local; capture.json is tracked so CI and clean clones
 # can run the Monte Carlo parity test without regenerating the full dataset.
 scripts/surrogate/data/*
