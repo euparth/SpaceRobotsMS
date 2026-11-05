@@ -14,12 +14,12 @@ authors:
 abstract: >-
   Browser-based simulator of a non-cooperative tumbling 12U CubeSat (Ix = 0.479, Iy = 0.273,
   Iz = 0.464 kg·m², z intermediate) captured by a 2 × 2 m tension-only XPBD net. Torque-free
-  Euler equations integrated with RK4 at H = 1/3000 s in a Web Worker; closed-form polhode
-  envelope criterion; seeded in-browser Monte Carlo over spin priors that reproduces the
-  committed dataset; closed-form spin-envelope criterion for the fire-now decision; MLP surrogate
-  retained for comparison; verification and limitations on the /methods page. The 2023 M.Sc.
-  thesis of the author (TH OWL) reviewed Shin et al.'s ABAQUS net-capture study; this simulator
-  is an independent re-implementation of that scenario.
+  Euler equations integrated with RK4 at H = 1/3000 s in a Web Worker; closed-form spin-envelope
+  criterion for the fire-now decision; seeded in-browser Monte Carlo over spin priors that
+  reproduces the committed dataset; MLP surrogate retained for comparison; verification and
+  limitations on the /methods page. The 2023 M.Sc. thesis of the author (TH OWL) reviewed Shin
+  et al.'s ABAQUS net-capture study; this simulator is an independent re-implementation of that
+  scenario.
 keywords:
   - space debris
   - net capture
