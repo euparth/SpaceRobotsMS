@@ -378,6 +378,11 @@ Items for the v1.0.0 tag (one commit each). Tag and GitHub Release are **not** c
 - `GNCWorkbench.jsx` header subtitle: `v1.0` (mobile and desktop).
 - Telemetry schema id `ps-msc.debris-capture.telemetry/v3` left unchanged (`src/services/telemetryExporter.js`); no test asserted the “GNC v3” UI string.
 
+### 3. CITATION.cff
+
+- Abstract: replaced “MLP surrogate for the fire-now decision” with “closed-form spin-envelope criterion for the fire-now decision; MLP surrogate retained for comparison”.
+- Added a `preferred-citation` block (`type: software`, author Parth Sharma, version 1.0.0, same repository URL).
+
 ## Not done / confirm
 
 - AI assistance disclosure wording: Parth to check before release.
