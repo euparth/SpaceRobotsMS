@@ -160,7 +160,11 @@ export default function Controls({ api, commanded, snapshot, onExport, tourHighl
         <Section title="Scenarios" aside={<span className="num text-[10px] text-slate-600">ωx · ωy · ωz</span>} bodyClassName="px-0 pb-1">
           {PRESETS.map((preset, index) => {
             const p = predictOutcome(preset.w)
-            const v = VERDICT[p.verdict]
+            // Card badge is the envelope verdict (SECURE iff closed-form max |ωz| ≤ limit), not PHASE_DEPENDENT.
+            const envelopeSecure = p.peak <= CAPTURE.wzLimit
+            const ruleSecure = Math.abs(preset.w[2]) <= CAPTURE.wzLimit
+            const v = envelopeSecure ? VERDICT.SECURE : VERDICT.EJECT
+            const ruleDisagrees = ruleSecure !== envelopeSecure
             const active = preset.w.every((x, i) => Math.abs(x - commanded[i]) < 1e-6)
             const isS3Pulse = preset.id === 'S3' && tourHighlight === 'step3'
             return (
@@ -182,7 +186,14 @@ export default function Controls({ api, commanded, snapshot, onExport, tourHighl
                   <span className="num block text-[10.5px] text-slate-500">{preset.w.map((x) => x.toFixed(2)).join(' · ')}</span>
                 </span>
                 <span className="flex items-center gap-2">
-                  <span className={cx('num rounded-[2px] border px-1 text-[9px] leading-[16px] tracking-[0.08em]', v.className)}>{v.label}</span>
+                  <span className="flex flex-col items-end gap-0.5">
+                    <span className={cx('num rounded-[2px] border px-1 text-[9px] leading-[16px] tracking-[0.08em]', v.className)}>{v.label}</span>
+                    {ruleDisagrees && (
+                      <span className="num text-[8.5px] leading-none tracking-[0.06em] text-slate-500">
+                        rule: {ruleSecure ? 'SECURE' : 'EJECT'}
+                      </span>
+                    )}
+                  </span>
                   <Kbd className="hidden lg:inline-flex">{index + 1}</Kbd>
                 </span>
               </button>

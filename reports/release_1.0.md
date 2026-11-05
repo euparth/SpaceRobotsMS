@@ -388,6 +388,13 @@ Items for the v1.0.0 tag (one commit each). Tag and GitHub Release are **not** c
 
 - Replaced the rule/envelope footnote with: “The static rule reads the initial state only. The envelope bounds |ωz| for all time, so ENVELOPE SECURE is a conservative (sufficient) condition for firing at any delay; it can hold spins the 0.25 s window would have cleared (99 of 1,200 on the default prior).” (`src/components/VerdictsPanel.jsx`)
 
+
+### 5. Scenario cards use envelope verdict
+
+- Scenario list badges show envelope SECURE/EJECT (S4 → EJECT), not `PHASE-DEP`.
+- When |ωz0| rule and envelope disagree, a second line `rule: SECURE` (or `rule: EJECT`) is shown (S4: envelope EJECT, `rule: SECURE`).
+- `predictOutcome()` still returns `PHASE_DEPENDENT` for the live Forecast badge and for `tests/methods.test.mjs` / research tables; no test asserted the old scenario-card label.
+
 ## Not done / confirm
 
 - AI assistance disclosure wording: Parth to check before release.
