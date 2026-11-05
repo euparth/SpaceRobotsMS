@@ -353,7 +353,7 @@ Originally on Phase 7 commit `b27c595`. After CI required tracking `capture.json
 ## Pre-v1.0.0 items (2026-11-05)
 
 - **MIT licence**: confirmed by Parth Sharma. The “confirm with Parth Sharma” notes were removed from `README.md` and this report; `LICENSE` remains MIT.
-- **AI assistance disclosure** (wording for Parth to check before release): added to `README.md` (Methods and verification · Provenance) and `/methods` §5: “Developed with AI coding assistance (Cursor). The author specified the research questions and reviewed the results; numbers come from the committed scripts and tests.”
+- **AI assistance disclosure**: wording updated before the v1.0.0 tag (see §1.0.0 final · small fixes item 1).
 - **gitleaks** 8.30.1 over full history (`gitleaks detect --source . --log-opts="--all"`): 24 commits scanned, ~1.29 MB, **no leaks found** (exit 0). Raw: `reports/raw/release/gitleaks.txt`, `reports/raw/release/gitleaks.json`.
 - Git history and `Co-authored-by` trailers were not rewritten. Repository visibility was not changed.
 
@@ -364,7 +364,7 @@ Items for the v1.0.0 tag (one commit each). Tag and GitHub Release are **not** c
 ### 1. Clean production build
 
 - Added `surrogate_verification_log.txt` to `.gitignore`.
-- `vite.config.js`: `__GIT_DIRTY__` is forced false when `VERCEL` is set so GitHub→Vercel builds never stamp `+dirty`.
+- `vite.config.js`: earlier forced `__GIT_DIRTY__` false on Vercel; removed before the v1.0.0 tag (see small fixes item 5) — dirty is derived from real `git status`.
 - Production deploys only via the GitHub→Vercel integration (no `vercel deploy --prod` from a dirty local tree).
 - Commit: `a6188b3`.
 - Production `/methods` after deploy `dpl_3Km1j3AL4mpog6P9kCZ9X5BxNXPo` (alias https://space-debris-sim.vercel.app):
@@ -441,9 +441,25 @@ Workbench performance target ≥ 85 was not met (WebGL / three.js long tasks und
   - full footer: `Space Debris Capture Simulator · build main · a357718 · 2026-11-05 · https://github.com/euparth/SpaceRobotsMS`
   - intro “Build shown”: `main · a357718 (2026-11-05)`
 
+
+### Small fixes before v1.0.0 tag
+
+| Item | Commit | Notes |
+| --- | --- | --- |
+| 1 AI disclosure | `25791ef` | Exact Cursor / Gemini / Claude wording in README Provenance and `/methods` §5 |
+| 2 Telemetry engine | `8e04e32` | `engine: 'Space Debris Capture Simulator v1.0'`; schema id unchanged; no test asserted the old string |
+| 3 CITATION abstract | `a2c36d1` | Spin-envelope criterion mentioned once |
+| 4 E2E S4 flake | `4ecbade` | Wait for solver `data-verdict=EJECT` (state that drives the banner), then assert TWIST-OUT text; Launch via button. Playwright 5 consecutive runs: **5/5 passed** (3 tests each) |
+| 5 `__GIT_DIRTY__` | `d91c6b0` | Removed Vercel override; `gitDirty()` from `git status --porcelain --untracked-files=no`, false if git unavailable |
+| 6 Record + push | *(this commit)* | CI / production string / gitleaks filled below |
+
+- Playwright pass count (local, 5 consecutive full suite runs): **5 / 5**
+- CI (first attempt after push): *(filled after push)*
+- Production `/methods` build string after clean GitHub→Vercel deploy: *(filled after deploy)*
+- gitleaks: *(filled after push)*
+
 ## Not done / confirm
 
-- AI assistance disclosure wording: Parth to check before release.
 - Lighthouse mobile performance ≥ 85 on `/`: not reached (72 / 74 / 84). See §1.0.0 final item 7 for the recorded scores.
 - Preview Deployment Protection: URL requires Vercel login (or a share / bypass token); public anonymous access NOT MEASURED.
 - rosbridge vs a live `rosbridge_server`: **NOT MEASURED**.
