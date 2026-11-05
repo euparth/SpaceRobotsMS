@@ -450,13 +450,15 @@ Workbench performance target ≥ 85 was not met (WebGL / three.js long tasks und
 | 2 Telemetry engine | `8e04e32` | `engine: 'Space Debris Capture Simulator v1.0'`; schema id unchanged; no test asserted the old string |
 | 3 CITATION abstract | `a2c36d1` | Spin-envelope criterion mentioned once |
 | 4 E2E S4 flake | `4ecbade` | Wait for solver `data-verdict=EJECT` (state that drives the banner), then assert TWIST-OUT text; Launch via button. Playwright 5 consecutive runs: **5/5 passed** (3 tests each) |
-| 5 `__GIT_DIRTY__` | `d91c6b0` | Removed Vercel override; `gitDirty()` from `git status --porcelain --untracked-files=no`, false if git unavailable |
-| 6 Record + push | *(this commit)* | CI / production string / gitleaks filled below |
+| 5 `__GIT_DIRTY__` | `d91c6b0`, `f976cb9`, `ec9b5c7` | Removed Vercel force-false; dirty from content `diff-index` after index refresh; exclude `package-lock.json` / `vercel.json` (rewritten by npm / `vercel build`). Git unavailable → clean. |
+| 6 Record + push | *(this commit)* | CI / production string / gitleaks below |
 
 - Playwright pass count (local, 5 consecutive full suite runs): **5 / 5**
-- CI (first attempt after push): *(filled after push)*
-- Production `/methods` build string after clean GitHub→Vercel deploy: *(filled after deploy)*
-- gitleaks: *(filled after push)*
+- CI (first attempt after `ec9b5c7` push): https://github.com/euparth/SpaceRobotsMS/actions/runs/41983853258 — success (`test-build` + `browser-smoke`).
+- Production `/methods` footer after clean GitHub→Vercel deploy `dpl_5bwSADyNPkyGj87yy868PWk9Fb1A` (commit `ec9b5c7`):
+  - build label: `main · ec9b5c7` (no `+dirty`)
+  - exact footer string: `Space Debris Capture Simulator · build main · ec9b5c7 · 2026-11-05 · https://github.com/euparth/SpaceRobotsMS`
+- gitleaks 8.30.1 (`gitleaks detect --source . --log-opts="--all"`): **43 commits scanned**, ~1.31 MB, **no leaks found** (exit 0). Raw: `reports/raw/release/gitleaks_pre_v1.txt`, `reports/raw/release/gitleaks_pre_v1.json`.
 
 ## Not done / confirm
 
