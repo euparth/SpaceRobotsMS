@@ -3,6 +3,7 @@
  * appears in README.md unchanged, so the page and the README cannot drift apart.
  */
 export const README_LIMITATIONS = Object.freeze([
+  'Shin et al. (2023) tested z-spin at 0.1, 0.5, 1, 2, 3 and 5 rad/s: capture succeeded at 0.1–1 rad/s, was incomplete at 2 and 3 rad/s, and failed at 5 rad/s, with nothing tested between 3 and 5 rad/s. The 3.0 rad/s limit is a modelling choice, not a threshold reported by Shin et al., and "secure" means no predicted rebound, not full encapsulation.',
   'One-way coupling is the default and the capture verdict is rigid-body only: the body is integrated torque-free and the net sees it as an infinite-mass wall; the dataset label (`fireNowSecure`) is peak |ωz| of the torque-free body over the 0.25 s window.',
   'Strain head R² = −0.049 on its held-out split and is excluded from verdicts.',
   'Optimal-delay MAE 703 ms (PINN fire-schedule vs physics, 500 spins).',

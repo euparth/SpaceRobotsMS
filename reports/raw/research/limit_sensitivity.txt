@@ -1,0 +1,6 @@
+dataset: scripts/surrogate/data/capture.json, n = 1200; label: peak0 <= limit; 3.0 row and fireNowSecure reproduced
+limit | label secure | rule secure | rule false-secure | % of rule-secure | rule false-eject | envelope secure | envelope false-secure | envelope false-eject
+1.0 | 72 | 251 | 179 | 71.3147 | 0 | 46 | 0 | 26
+2.0 | 248 | 487 | 240 | 49.2813 | 1 | 185 | 0 | 63
+3.0 | 490 | 731 | 245 | 33.5157 | 4 | 391 | 0 | 99
+4.0 | 750 | 972 | 228 | 23.4568 | 6 | 644 | 0 | 106

@@ -219,3 +219,15 @@ export const PINN_METRICS = Object.freeze({
   latencyMs: 0.36225471993287406,
   weightsBytes: 124846,
 })
+
+// Default dataset, limit varied, label = committed contact-window peak (peak0 <= limit)
+export const LIMIT_SENSITIVITY = Object.freeze({
+  raw: 'reports/raw/research/limit_sensitivity.txt',
+  script: 'scripts/research/limit_sensitivity.mjs',
+  rows: Object.freeze([
+    Object.freeze({ limit: 1, labelSecure: 72, ruleSecure: 251, ruleFalseSecure: 179, pct: 71.3147, ruleFalseEject: 0, envSecure: 46, envFalseSecure: 0, envFalseEject: 26 }),
+    Object.freeze({ limit: 2, labelSecure: 248, ruleSecure: 487, ruleFalseSecure: 240, pct: 49.2813, ruleFalseEject: 1, envSecure: 185, envFalseSecure: 0, envFalseEject: 63 }),
+    Object.freeze({ limit: 3, labelSecure: 490, ruleSecure: 731, ruleFalseSecure: 245, pct: 33.5157, ruleFalseEject: 4, envSecure: 391, envFalseSecure: 0, envFalseEject: 99 }),
+    Object.freeze({ limit: 4, labelSecure: 750, ruleSecure: 972, ruleFalseSecure: 228, pct: 23.4568, ruleFalseEject: 6, envSecure: 644, envFalseSecure: 0, envFalseEject: 106 }),
+  ]),
+})

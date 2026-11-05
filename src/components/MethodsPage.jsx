@@ -11,6 +11,7 @@ import {
   DATASET_HASHES,
   DRIFT,
   INERTIA_BOX,
+  LIMIT_SENSITIVITY,
   MACHINE,
   MISCLASS,
   PINN_METRICS,
@@ -214,7 +215,8 @@ export default function MethodsPage() {
         <P>
           The capture verdict is binary. Over the contact window of {CONTACT_WINDOW.toFixed(2)} s starting at first knot contact, the
           solver records max |ωz| of the body. If it exceeds {CAPTURE.wzLimit.toFixed(1)} rad/s the target is EJECTED (twist-out), else it is
-          SECURED and the closure model runs. There is no partial category (V Task B). Four predictors of the same event are shown side by
+          SECURED and the closure model runs. There is no partial category (V Task B). The {CAPTURE.wzLimit.toFixed(1)} rad/s limit is a modelling
+          choice, not a threshold reported by Shin et al. (2023), and SECURED means no predicted rebound, not full encapsulation; see section 3.3. Four predictors of the same event are shown side by
           side in the Verdicts panel:
         </P>
         <Table
@@ -418,6 +420,17 @@ export default function MethodsPage() {
           (excluded from verdicts). Coupled one-way verdict equals the dataset label on {MISCLASS.coupledAgree} of 1,200 rows (two-way:{' '}
           {TWO_WAY.agreeWithLabel.twoWay}).
         </P>
+
+        <H3 id="limit-sensitivity">3.3 Sensitivity to the z-spin limit</H3>
+        <P>
+          Shin et al. (2023) tested z-spin at 0.1, 0.5, 1, 2, 3 and 5 rad/s. Capture succeeded at 0.1–1 rad/s, was incomplete at 2 and 3 rad/s,
+          and failed at 5 rad/s. Nothing was tested between 3 and 5 rad/s. The table recomputes the default dataset (n = 1,200) at other limits; only
+          the limit changes. Script: <Code>{LIMIT_SENSITIVITY.script}</Code>. Raw: <Code>{LIMIT_SENSITIVITY.raw}</Code>.
+        </P>
+        <Table
+          head={['Limit (rad/s)', 'Label secure', 'Rule secure', 'Rule false-secure', '% of rule-secure', 'Rule false-eject', 'Envelope secure', 'Envelope false-secure', 'Envelope false-eject']}
+          rows={LIMIT_SENSITIVITY.rows.map((r) => [r.limit.toFixed(1), String(r.labelSecure), String(r.ruleSecure), String(r.ruleFalseSecure), r.pct.toFixed(4), String(r.ruleFalseEject), String(r.envSecure), String(r.envFalseSecure), String(r.envFalseEject)])}
+        />
 
         {/* ------------------------------------------------------------------ 4 LIMITATIONS */}
         <H2 id="limitations">4. Limitations</H2>

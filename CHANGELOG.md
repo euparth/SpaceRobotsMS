@@ -3,6 +3,14 @@
 All notable changes to this project are documented here. Numbers quoted are measured values from
 `reports/`; the file and section they come from is named next to each.
 
+## [Unreleased]
+
+### Added
+- Limit sensitivity for the default dataset at 1, 2, 3 and 4 rad/s (`scripts/research/limit_sensitivity.mjs`, `reports/raw/research/limit_sensitivity.txt`; /methods section 3.3, README).
+
+### Documentation
+- State what Shin et al. (2023) report at each tested z-spin rate, and that the 3.0 rad/s limit is a modelling choice and "secure" means no predicted rebound.
+
 ## [1.0.0] — 2026-11-05
 
 Final 1.0.0 release for academic citation. One commit per phase on `main`; release-candidate

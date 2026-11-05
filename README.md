@@ -14,7 +14,7 @@ A browser-based GNC (guidance, navigation and control) workbench that simulates 
 | Inertia | Ix = 0.479, Iy = 0.273, Iz = 0.464 kg·m² (Z is the intermediate axis) |
 | Net | 2.0 × 2.0 m Kevlar 49, 12 × 12 knots, E = 120 GPa, ρ = 1440 kg/m³, μ = 0.20 |
 | Approach | 10.0 m/s relative, 3.0 m standoff |
-| Instability law | \|ωz\| > 3.0 rad/s during contact ⇒ twist-out ejection |
+| Instability law | \|ωz\| > 3.0 rad/s during contact ⇒ twist-out ejection (modelling choice; see Status and limitations) |
 
 ## Architecture
 
@@ -188,6 +188,7 @@ JSON (`ps-msc.debris-capture.telemetry/v3`) or CSV with timestamps, quaternion, 
 
 ## Status and limitations
 
+- Shin et al. (2023) tested z-spin at 0.1, 0.5, 1, 2, 3 and 5 rad/s: capture succeeded at 0.1–1 rad/s, was incomplete at 2 and 3 rad/s, and failed at 5 rad/s, with nothing tested between 3 and 5 rad/s. The 3.0 rad/s limit is a modelling choice, not a threshold reported by Shin et al., and "secure" means no predicted rebound, not full encapsulation.
 - One-way coupling is the default and the capture verdict is rigid-body only: the body is integrated torque-free and the net sees it as an infinite-mass wall; the dataset label (`fireNowSecure`) is peak |ωz| of the torque-free body over the 0.25 s window.
 - Strain head R² = −0.049 on its held-out split and is excluded from verdicts.
 - Optimal-delay MAE 703 ms (PINN fire-schedule vs physics, 500 spins).
@@ -195,6 +196,15 @@ JSON (`ps-msc.debris-capture.telemetry/v3`) or CSV with timestamps, quaternion, 
 - Ground truth is this solver, not experiment. No hardware or published-experiment comparison has been run.
 - Two-way coupling (`coupledImpact(..., { coupling: 'two-way' })`, `NetSolver.twoWay`) is experimental: it is off by default, changes 3 of 1,200 reference verdicts (eject → capture, all within 0.024 rad/s of the threshold), and the net's XPBD projection does not conserve angular momentum exactly during impact (`reports/research_2026-11.md`, Phase 3).
 - `speedupVsCoupledEstimate` in `src/surrogate/metrics.json` divides a hardcoded 17 ms by the training-time latency; the measured one-way coupled rollout on an Apple M1 is 6.7–7.5 ms mean (`reports/validation_2026-11.md` Task D, `reports/research_2026-11.md` Phase 3e).
+
+Sensitivity of the default dataset (n = 1,200) to the limit, with only the limit changed (`scripts/research/limit_sensitivity.mjs`, raw `reports/raw/research/limit_sensitivity.txt`):
+
+| Limit (rad/s) | Label secure | Rule secure | Rule false-secure | % of rule-secure | Rule false-eject | Envelope secure | Envelope false-secure | Envelope false-eject |
+|---|---|---|---|---|---|---|---|---|
+| 1.0 | 72 | 251 | 179 | 71.3147 | 0 | 46 | 0 | 26 |
+| 2.0 | 248 | 487 | 240 | 49.2813 | 1 | 185 | 0 | 63 |
+| 3.0 | 490 | 731 | 245 | 33.5157 | 4 | 391 | 0 | 99 |
+| 4.0 | 750 | 972 | 228 | 23.4568 | 6 | 644 | 0 | 106 |
 
 ## Development
 ```bash
