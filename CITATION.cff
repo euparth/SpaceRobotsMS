@@ -2,15 +2,15 @@ cff-version: 1.2.0
 message: "If you use this simulator, please cite it as below."
 title: "Space Debris Capture Simulator: tumbling 12U CubeSat captured by a Kevlar 49 net"
 type: software
-version: 1.0.0
-date-released: 2026-11-05
+version: 1.0.1
+date-released: 2026-11-14
 license: MIT
 repository-code: "https://github.com/euparth/SpaceRobotsMS"
 url: "https://space-debris-sim.vercel.app"
 identifiers:
   - type: doi
-    value: 10.5281/zenodo.23973367
-    description: Concept DOI (always resolves to the latest version)
+    value: 10.5281/zenodo.23973368
+    description: DOI of release v1.0.0 (Zenodo version record)
 authors:
   - family-names: Sharma
     given-names: Parth
@@ -38,15 +38,15 @@ preferred-citation:
       given-names: Parth
       email: euparth@gmail.com
   title: "Space Debris Capture Simulator: tumbling 12U CubeSat captured by a Kevlar 49 net"
-  version: 1.0.0
-  date-released: 2026-11-05
+  version: 1.0.1
+  date-released: 2026-11-14
   license: MIT
   url: "https://space-debris-sim.vercel.app"
   repository-code: "https://github.com/euparth/SpaceRobotsMS"
   identifiers:
     - type: doi
-      value: 10.5281/zenodo.23973367
-      description: Concept DOI (always resolves to the latest version)
+      value: 10.5281/zenodo.23973368
+      description: DOI of release v1.0.0 (Zenodo version record)
   abstract: >-
     Browser-based simulator of a non-cooperative tumbling 12U CubeSat captured by a Kevlar 49
     net, with a closed-form spin-envelope criterion for the fire-now decision and an MLP

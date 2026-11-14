@@ -3,12 +3,14 @@
 All notable changes to this project are documented here. Numbers quoted are measured values from
 `reports/`; the file and section they come from is named next to each.
 
-## [Unreleased]
+## [1.0.1] — 2026-11-14
 
 ### Added
+- Technical note `reports/technical_note_2026-11.md`: closed-form spin-envelope criterion, verification, limit sensitivity and limitations.
 - Limit sensitivity for the default dataset at 1, 2, 3 and 4 rad/s (`scripts/research/limit_sensitivity.mjs`, `reports/raw/research/limit_sensitivity.txt`; /methods section 3.3, README).
 
 ### Documentation
+- Replace the concept DOI, which does not resolve at doi.org, with the v1.0.0 version DOI 10.5281/zenodo.23973368 in README.md, CITATION.cff and /methods.
 - State what Shin et al. (2023) report at each tested z-spin rate, and that the 3.0 rad/s limit is a modelling choice and "secure" means no predicted rebound.
 
 ## [1.0.0] — 2026-11-05
